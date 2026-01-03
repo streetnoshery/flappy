@@ -1,0 +1,57 @@
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Layout from './components/Layout';
+import Login from './pages/auth/Login';
+import Signup from './pages/auth/Signup';
+import Home from './pages/Home';
+import Profile from './pages/Profile';
+import CreatePost from './pages/CreatePost';
+import PostDetail from './pages/PostDetail';
+import Search from './pages/Search';
+import Explore from './pages/Explore';
+
+function ProtectedRoute({ children }) {
+  const { user } = useAuth();
+  return user ? children : <Navigate to="/login" />;
+}
+
+function PublicRoute({ children }) {
+  const { user } = useAuth();
+  return !user ? children : <Navigate to="/" />;
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <div className="App">
+        <Routes>
+          <Route path="/login" element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } />
+          <Route path="/signup" element={
+            <PublicRoute>
+              <Signup />
+            </PublicRoute>
+          } />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Home />} />
+            <Route path="profile/:userId" element={<Profile />} />
+            <Route path="create" element={<CreatePost />} />
+            <Route path="post/:postId" element={<PostDetail />} />
+            <Route path="search" element={<Search />} />
+            <Route path="explore" element={<Explore />} />
+          </Route>
+        </Routes>
+      </div>
+    </AuthProvider>
+  );
+}
+
+export default App;

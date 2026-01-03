@@ -1,0 +1,184 @@
+import React, { useState } from 'react';
+import { useQuery } from 'react-query';
+import { Search as SearchIcon, User, Hash } from 'lucide-react';
+import { searchAPI } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+const Search = () => {
+  const [query, setQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('users');
+
+  const { data: usersData, isLoading: usersLoading } = useQuery(
+    ['searchUsers', query],
+    () => searchAPI.searchUsers(query),
+    {
+      enabled: query.length > 0 && activeTab === 'users',
+    }
+  );
+
+  const { data: postsData, isLoading: postsLoading } = useQuery(
+    ['searchPosts', query],
+    () => searchAPI.searchPosts(query),
+    {
+      enabled: query.length > 0 && activeTab === 'posts',
+    }
+  );
+
+  const { data: trendingData } = useQuery(
+    'trendingTags',
+    () => searchAPI.getTrendingTags()
+  );
+
+  const users = usersData?.data || [];
+  const posts = postsData?.data || [];
+  const trendingTags = trendingData?.data || [];
+
+  const tabs = [
+    { id: 'users', label: 'Users', icon: User },
+    { id: 'posts', label: 'Posts', icon: Hash },
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Search Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="relative">
+          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search users, posts, or hashtags..."
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      {/* Trending Tags */}
+      {!query && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Trending Tags</h2>
+          <div className="flex flex-wrap gap-2">
+            {trendingTags.map((tag, index) => (
+              <button
+                key={index}
+                onClick={() => setQuery(tag.tag)}
+                className="px-3 py-1 bg-primary-50 text-primary-700 rounded-full hover:bg-primary-100 transition-colors"
+              >
+                #{tag.tag} ({tag.count})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search Results */}
+      {query && (
+        <>
+          {/* Tabs */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="border-b border-gray-200">
+              <nav className="flex space-x-8 px-6">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors ${
+                        activeTab === tab.id
+                          ? 'border-primary-500 text-primary-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            <div className="p-6">
+              {activeTab === 'users' && (
+                <div>
+                  {usersLoading ? (
+                    <LoadingSpinner />
+                  ) : users.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No users found</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {users.map((user) => (
+                        <div key={user._id} className="flex items-center space-x-4 p-4 hover:bg-gray-50 rounded-lg">
+                          <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                            {user.profilePhotoUrl ? (
+                              <img
+                                src={user.profilePhotoUrl}
+                                alt={user.username}
+                                className="w-12 h-12 rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-gray-600 font-medium">
+                                {user.username[0].toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900">{user.username}</h3>
+                            <p className="text-sm text-gray-500">{user.email}</p>
+                            {user.bio && (
+                              <p className="text-sm text-gray-600 mt-1">{user.bio}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'posts' && (
+                <div>
+                  {postsLoading ? (
+                    <LoadingSpinner />
+                  ) : posts.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No posts found</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {posts.map((post) => (
+                        <div key={post._id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                              <span className="text-sm text-gray-600 font-medium">
+                                {post.userId?.username?.[0]?.toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="font-medium text-gray-900">
+                              {post.userId?.username}
+                            </span>
+                          </div>
+                          <p className="text-gray-700">{post.content}</p>
+                          {post.hashtags && post.hashtags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {post.hashtags.map((tag, index) => (
+                                <span key={index} className="text-primary-600">
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default Search;
