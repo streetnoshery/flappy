@@ -7,15 +7,20 @@ import {
   Param, 
   Body, 
   UseGuards,
-  Request
+  Request,
+  BadRequestException
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PostsService } from './posts.service';
 import { CreatePostDto, UpdatePostDto } from './dto/post.dto';
+import { FeatureFlagsService } from '../common/services/feature-flags.service';
 
 @Controller('posts')
 export class PostsController {
-  constructor(private readonly postsService: PostsService) {}
+  constructor(
+    private readonly postsService: PostsService,
+    private readonly featureFlagsService: FeatureFlagsService
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -27,6 +32,17 @@ export class PostsController {
       hasMedia: !!createPostDto.mediaUrl,
       timestamp: new Date().toISOString()
     });
+    
+    // Additional feature flag validation
+    if (!this.featureFlagsService.validatePostType(createPostDto.type)) {
+      const enabledTypes = this.featureFlagsService.getEnabledPostTypes();
+      console.error('❌ [POSTS] POST /posts - Post type not enabled', {
+        requestedType: createPostDto.type,
+        enabledTypes,
+        userId: req.user._id
+      });
+      throw new BadRequestException(`Post type '${createPostDto.type}' is not enabled. Available types: ${enabledTypes.join(', ')}`);
+    }
     
     try {
       const post = await this.postsService.create(createPostDto, req.user._id);

@@ -285,6 +285,49 @@ Authorization: Bearer <your-jwt-token>
 
 ---
 
+## 🚩 Feature Flags Module
+
+### GET /feature-flags
+**Purpose**: Get all feature flags configuration  
+**Business Logic**: Returns current feature flag settings for the application  
+**Authentication**: None required
+
+**Response (200 OK)**:
+```json
+{
+  "enableImagePosts": true,
+  "enableGifPosts": true,
+  "enableVideoUploads": false,
+  "enableAdvancedSearch": true
+}
+```
+
+**Console Logs**:
+- 🚩 Feature flags request
+- ✅ Feature flags retrieval success
+- ❌ Feature flags retrieval failures
+
+---
+
+### GET /feature-flags/post-types
+**Purpose**: Get enabled post types based on feature flags  
+**Business Logic**: Returns array of post types that are currently enabled  
+**Authentication**: None required
+
+**Response (200 OK)**:
+```json
+{
+  "enabledTypes": ["text", "image", "gif"]
+}
+```
+
+**Console Logs**:
+- 📝 Enabled post types request
+- ✅ Enabled post types retrieval success
+- ❌ Enabled post types retrieval failures
+
+---
+
 ## 📝 Posts Module
 
 ### POST /posts
@@ -302,9 +345,11 @@ Authorization: Bearer <your-jwt-token>
 ```
 
 **Validation Rules**:
-- `type`: Enum ['text', 'image', 'gif'] (required)
+- `type`: Must be one of the enabled post types (validated against feature flags)
 - `content`: String (required)
-- `mediaUrl`: String (optional)
+- `mediaUrl`: String (optional, required for image/gif posts)
+
+**Note**: Available post types depend on feature flag configuration. Use `/feature-flags/post-types` to get currently enabled types.
 
 **Response (201 Created)**:
 ```json
@@ -1063,7 +1108,7 @@ All API endpoints include comprehensive console logging with:
 | PUT | `/users/:id` | Yes | Update user profile |
 | POST | `/users/:id/upload-photo` | Yes | Upload profile photo |
 | GET | `/users/search` | No | Search users |
-| POST | `/posts` | Yes | Create post |
+| POST | `/posts` | Yes | Create post (respects feature flags) |
 | GET | `/posts/:id` | No | Get post |
 | PUT | `/posts/:id` | Yes | Update post |
 | DELETE | `/posts/:id` | Yes | Delete post |
@@ -1082,5 +1127,7 @@ All API endpoints include comprehensive console logging with:
 | GET | `/search/users` | No | Search users |
 | GET | `/search/posts` | No | Search posts |
 | GET | `/search/trending-tags` | No | Get trending hashtags |
+| GET | `/feature-flags` | No | Get feature flags |
+| GET | `/feature-flags/post-types` | No | Get enabled post types |
 
 This documentation provides a complete reference for all API endpoints, their purposes, business logic, request/response formats, and expected behaviors in the Flappy social media platform.

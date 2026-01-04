@@ -95,4 +95,10 @@ export const searchAPI = {
   getTrendingTags: () => api.get('/search/trending-tags'),
 };
 
+// Feature Flags API
+export const featureFlagsAPI = {
+  getFeatureFlags: () => api.get('/feature-flags'),
+  getEnabledPostTypes: () => api.get('/feature-flags/post-types'),
+};
+
 export default api;

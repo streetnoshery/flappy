@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
@@ -24,32 +25,34 @@ function PublicRoute({ children }) {
 function App() {
   return (
     <AuthProvider>
-      <div className="App">
-        <Routes>
-          <Route path="/login" element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          } />
-          <Route path="/signup" element={
-            <PublicRoute>
-              <Signup />
-            </PublicRoute>
-          } />
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Home />} />
-            <Route path="profile/:userId" element={<Profile />} />
-            <Route path="create" element={<CreatePost />} />
-            <Route path="post/:postId" element={<PostDetail />} />
-            <Route path="search" element={<Search />} />
-            <Route path="explore" element={<Explore />} />
-          </Route>
-        </Routes>
-      </div>
+      <FeatureFlagsProvider>
+        <div className="App">
+          <Routes>
+            <Route path="/login" element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } />
+            <Route path="/signup" element={
+              <PublicRoute>
+                <Signup />
+              </PublicRoute>
+            } />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Home />} />
+              <Route path="profile/:userId" element={<Profile />} />
+              <Route path="create" element={<CreatePost />} />
+              <Route path="post/:postId" element={<PostDetail />} />
+              <Route path="search" element={<Search />} />
+              <Route path="explore" element={<Explore />} />
+            </Route>
+          </Routes>
+        </div>
+      </FeatureFlagsProvider>
     </AuthProvider>
   );
 }

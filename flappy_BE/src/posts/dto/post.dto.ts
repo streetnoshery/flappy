@@ -1,7 +1,8 @@
-import { IsString, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
+import { IsValidPostType } from 'src/common/validators/post-type.validator';
 
 export class CreatePostDto {
-  @IsEnum(['text', 'image', 'gif'])
+  @IsValidPostType({ message: 'Invalid post type or post type is disabled' })
   type: string;
 
   @IsString()

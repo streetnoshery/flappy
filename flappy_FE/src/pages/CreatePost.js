@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from 'react-query';
-import { Image, FileText, Film } from 'lucide-react';
+import { Image, FileText, Film, AlertCircle } from 'lucide-react';
 import { postsAPI } from '../services/api';
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import toast from 'react-hot-toast';
 
 const CreatePost = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isPostTypeEnabled, getEnabledPostTypes, loading: flagsLoading } = useFeatureFlags();
   const [postType, setPostType] = useState('text');
   const { register, handleSubmit, formState: { errors }, watch } = useForm();
 
@@ -23,28 +25,80 @@ const CreatePost = () => {
         navigate('/');
       },
       onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to create post');
+        const errorMessage = error.response?.data?.message;
+        if (Array.isArray(errorMessage)) {
+          errorMessage.forEach(msg => toast.error(msg));
+        } else {
+          toast.error(errorMessage || 'Failed to create post');
+        }
       },
     }
   );
 
   const onSubmit = (data) => {
+    if (!isPostTypeEnabled(postType)) {
+      toast.error(`${postType} posts are currently disabled`);
+      return;
+    }
+    
     createPostMutation.mutate({
       ...data,
       type: postType,
     });
   };
 
-  const postTypes = [
+  const allPostTypes = [
     { id: 'text', label: 'Text', icon: FileText },
     { id: 'image', label: 'Image', icon: Image },
     { id: 'gif', label: 'GIF', icon: Film },
   ];
 
+  // Filter post types based on feature flags
+  const availablePostTypes = allPostTypes.filter(type => isPostTypeEnabled(type.id));
+
+  // Set default post type to first available if current is not enabled
+  React.useEffect(() => {
+    if (!flagsLoading && !isPostTypeEnabled(postType)) {
+      const enabledTypes = getEnabledPostTypes();
+      if (enabledTypes.length > 0) {
+        setPostType(enabledTypes[0]);
+      }
+    }
+  }, [flagsLoading, postType, isPostTypeEnabled, getEnabledPostTypes]);
+
+  if (flagsLoading) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+            <div className="space-y-4">
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="flex space-x-4">
+                <div className="h-10 bg-gray-200 rounded w-20"></div>
+                <div className="h-10 bg-gray-200 rounded w-20"></div>
+                <div className="h-10 bg-gray-200 rounded w-20"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Create New Post</h1>
+
+        {availablePostTypes.length === 0 && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+              <p className="text-yellow-800">No post types are currently available. Please contact support.</p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Post Type Selection */}
@@ -52,8 +106,8 @@ const CreatePost = () => {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Post Type
             </label>
-            <div className="flex space-x-4">
-              {postTypes.map((type) => {
+            <div className="flex flex-wrap gap-4">
+              {availablePostTypes.map((type) => {
                 const Icon = type.icon;
                 return (
                   <button
@@ -72,6 +126,32 @@ const CreatePost = () => {
                 );
               })}
             </div>
+            
+            {/* Show disabled post types with explanation */}
+            {allPostTypes.length > availablePostTypes.length && (
+              <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                <p className="text-sm text-gray-600">
+                  <AlertCircle className="w-4 h-4 inline mr-1" />
+                  Coming soon
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {allPostTypes
+                    .filter(type => !isPostTypeEnabled(type.id))
+                    .map(type => {
+                      const Icon = type.icon;
+                      return (
+                        <span
+                          key={type.id}
+                          className="inline-flex items-center space-x-1 px-2 py-1 bg-gray-200 text-gray-500 rounded text-sm"
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span>{type.label}</span>
+                        </span>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Content */}
@@ -124,7 +204,7 @@ const CreatePost = () => {
             </button>
             <button
               type="submit"
-              disabled={createPostMutation.isLoading}
+              disabled={createPostMutation.isLoading || availablePostTypes.length === 0}
               className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
             >
               {createPostMutation.isLoading ? 'Creating...' : 'Create Post'}
