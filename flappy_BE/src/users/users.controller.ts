@@ -6,12 +6,10 @@ import {
   Param, 
   Body, 
   Query, 
-  UseGuards, 
   UseInterceptors, 
   UploadedFile 
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -44,7 +42,6 @@ export class UsersController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
   async updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     console.log('✏️ [USERS] PUT /users/:id - Updating user profile', {
       userId: id,
@@ -71,11 +68,11 @@ export class UsersController {
   }
 
   @Post(':id/upload-photo')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('photo'))
-  async uploadPhoto(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+  async uploadPhoto(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Body() body: { userId: string; email: string }) {
     console.log('📸 [USERS] POST /users/:id/upload-photo - Uploading profile photo', {
       userId: id,
+      requestUserId: body.userId,
       fileName: file?.originalname,
       fileSize: file?.size,
       timestamp: new Date().toISOString()

@@ -9,10 +9,7 @@ http://localhost:3000
 ```
 
 ## Authentication
-The API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
-```
-Authorization: Bearer <your-jwt-token>
-```
+The API no longer uses JWT tokens. Instead, all protected endpoints require `userId` and `email` to be included in the request body for user identification and authorization.
 
 ---
 
@@ -46,12 +43,10 @@ Authorization: Bearer <your-jwt-token>
 {
   "message": "User created successfully",
   "user": {
-    "id": "64f8a1b2c3d4e5f6a7b8c9d0",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
     "username": "johndoe"
-  },
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
 }
 ```
 
@@ -64,7 +59,7 @@ Authorization: Bearer <your-jwt-token>
 
 ### POST /auth/login
 **Purpose**: Authenticate existing user  
-**Business Logic**: Validates credentials, generates JWT tokens for session management  
+**Business Logic**: Validates credentials, returns user data for session management  
 **Authentication**: None required
 
 **Request Body**:
@@ -84,12 +79,10 @@ Authorization: Bearer <your-jwt-token>
 {
   "message": "Login successful",
   "user": {
-    "id": "64f8a1b2c3d4e5f6a7b8c9d0",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
     "username": "johndoe"
-  },
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
 }
 ```
 
@@ -333,14 +326,16 @@ Authorization: Bearer <your-jwt-token>
 ### POST /posts
 **Purpose**: Create a new post (text, image, or GIF)  
 **Business Logic**: Extracts hashtags from content, supports media URLs, validates post type  
-**Authentication**: JWT required
+**Authentication**: Requires userId and email in request body
 
 **Request Body**:
 ```json
 {
   "type": "text",
   "content": "This is my first post! #excited #newuser",
-  "mediaUrl": "https://example.com/image.jpg"
+  "mediaUrl": "https://example.com/image.jpg",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com"
 }
 ```
 
@@ -348,6 +343,8 @@ Authorization: Bearer <your-jwt-token>
 - `type`: Must be one of the enabled post types (validated against feature flags)
 - `content`: String (required)
 - `mediaUrl`: String (optional, required for image/gif posts)
+- `userId`: UUID string (required)
+- `email`: Valid email format (required)
 
 **Note**: Available post types depend on feature flag configuration. Use `/feature-flags/post-types` to get currently enabled types.
 
@@ -355,7 +352,8 @@ Authorization: Bearer <your-jwt-token>
 ```json
 {
   "id": "64f8a1b2c3d4e5f6a7b8c9d0",
-  "userId": "64f8a1b2c3d4e5f6a7b8c9d1",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com",
   "type": "text",
   "content": "This is my first post! #excited #newuser",
   "mediaUrl": "https://example.com/image.jpg",
@@ -497,12 +495,13 @@ Authorization: Bearer <your-jwt-token>
 ## 🏠 Feed Module
 
 ### GET /feed/home
-**Purpose**: Get paginated home feed  
-**Business Logic**: Returns all posts sorted by newest, 10 posts per page  
-**Authentication**: None required
+**Purpose**: Get paginated home feed with like information  
+**Business Logic**: Returns all posts sorted by newest, 10 posts per page, includes like counts and user like status  
+**Authentication**: None required (userId optional for like status)
 
 **Query Parameters**:
 - `page`: Page number (default: 1)
+- `userId`: User ID (optional, for checking like status on posts)
 
 **Response (200 OK)**:
 ```json
@@ -511,12 +510,14 @@ Authorization: Bearer <your-jwt-token>
     {
       "id": "64f8a1b2c3d4e5f6a7b8c9d0",
       "userId": {
-        "id": "64f8a1b2c3d4e5f6a7b8c9d1",
+        "userId": "550e8400-e29b-41d4-a716-446655440000",
         "username": "johndoe",
         "profilePhotoUrl": "https://bucket.s3.amazonaws.com/profile.jpg"
       },
       "type": "text",
       "content": "Latest post content",
+      "likeCount": 5,
+      "isLiked": true,
       "createdAt": "2023-09-06T10:30:00.000Z"
     }
   ],
@@ -526,24 +527,25 @@ Authorization: Bearer <your-jwt-token>
 ```
 
 **Console Logs**:
-- 🏠 Home feed request with page number
+- 🏠 Home feed request with page number and userId
 - ✅ Feed retrieval with post count and pagination info
 - ❌ Feed retrieval failures
 
 ---
 
 ### GET /feed/reels
-**Purpose**: Get paginated reels feed (image/GIF posts only)  
-**Business Logic**: Filters posts by type (image/gif), sorted by newest  
-**Authentication**: None required
+**Purpose**: Get paginated reels feed (image/GIF posts only) with like information  
+**Business Logic**: Filters posts by type (image/gif), sorted by newest, includes like counts and user like status  
+**Authentication**: None required (userId optional for like status)
 
 **Query Parameters**:
 - `page`: Page number (default: 1)
+- `userId`: User ID (optional, for checking like status on posts)
 
 **Response (200 OK)**: Same structure as home feed, but filtered for visual content
 
 **Console Logs**:
-- 🎬 Reels feed request with page number
+- 🎬 Reels feed request with page number and userId
 - ✅ Reels feed retrieval with post count
 - ❌ Feed retrieval failures
 
@@ -569,17 +571,62 @@ Authorization: Bearer <your-jwt-token>
 ## 💬 Interactions Module
 
 ### POST /posts/:id/like
-**Purpose**: Like a post (Mock Implementation)  
-**Business Logic**: Currently returns success message, actual like tracking to be implemented  
-**Authentication**: JWT required
+**Purpose**: Toggle like on a post (like/unlike functionality)  
+**Business Logic**: Creates or removes like based on current state, maintains one like per user per post  
+**Authentication**: Requires userId and email in request body
 
 **Path Parameters**:
 - `id`: Post ID (ObjectId)
 
+**Request Body**:
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com"
+}
+```
+
 **Response (201 Created)**:
 ```json
 {
-  "message": "Post liked successfully"
+  "message": "Post liked successfully",
+  "isLiked": true,
+  "likeCount": 5
+}
+```
+
+**Response for Unlike (201 Created)**:
+```json
+{
+  "message": "Post unliked successfully",
+  "isLiked": false,
+  "likeCount": 4
+}
+```
+
+**Console Logs**:
+- ❤️ Post like toggle attempt
+- ✅ Like toggle success with new state and count
+- ❌ Like toggle failures
+
+---
+
+### GET /posts/:id/likes
+**Purpose**: Get like information for a post  
+**Business Logic**: Returns total like count and whether current user has liked the post  
+**Authentication**: None required (userId optional for like status)
+
+**Path Parameters**:
+- `id`: Post ID (ObjectId)
+
+**Query Parameters**:
+- `userId`: User ID (optional, for checking if user has liked the post)
+
+**Response (200 OK)**:
+```json
+{
+  "likeCount": 5,
+  "isLiked": true
 }
 ```
 
@@ -593,7 +640,7 @@ Authorization: Bearer <your-jwt-token>
 ### POST /posts/:id/comment
 **Purpose**: Add a comment to a post  
 **Business Logic**: Creates comment linked to post and user, supports nested replies  
-**Authentication**: JWT required
+**Authentication**: Requires userId and email in request body
 
 **Path Parameters**:
 - `id`: Post ID (ObjectId)
@@ -601,19 +648,23 @@ Authorization: Bearer <your-jwt-token>
 **Request Body**:
 ```json
 {
-  "text": "Great post! Thanks for sharing."
+  "text": "Great post! Thanks for sharing.",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com"
 }
 ```
 
 **Validation Rules**:
 - `text`: String (required)
+- `userId`: UUID string (required)
+- `email`: Valid email format (required)
 
 **Response (201 Created)**:
 ```json
 {
   "id": "64f8a1b2c3d4e5f6a7b8c9d0",
   "postId": "64f8a1b2c3d4e5f6a7b8c9d1",
-  "userId": "64f8a1b2c3d4e5f6a7b8c9d2",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
   "text": "Great post! Thanks for sharing.",
   "replies": [],
   "createdAt": "2023-09-06T10:30:00.000Z"
@@ -630,7 +681,7 @@ Authorization: Bearer <your-jwt-token>
 ### POST /posts/:id/comment/:commentId/reply
 **Purpose**: Reply to a specific comment  
 **Business Logic**: Adds nested reply to existing comment  
-**Authentication**: JWT required
+**Authentication**: Requires userId and email in request body
 
 **Path Parameters**:
 - `id`: Post ID (ObjectId)
@@ -639,23 +690,27 @@ Authorization: Bearer <your-jwt-token>
 **Request Body**:
 ```json
 {
-  "text": "I agree with your comment!"
+  "text": "I agree with your comment!",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com"
 }
 ```
 
 **Validation Rules**:
 - `text`: String (required)
+- `userId`: UUID string (required)
+- `email`: Valid email format (required)
 
 **Response (201 Created)**:
 ```json
 {
   "id": "64f8a1b2c3d4e5f6a7b8c9d0",
   "postId": "64f8a1b2c3d4e5f6a7b8c9d1",
-  "userId": "64f8a1b2c3d4e5f6a7b8c9d2",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
   "text": "Great post! Thanks for sharing.",
   "replies": [
     {
-      "userId": "64f8a1b2c3d4e5f6a7b8c9d3",
+      "userId": "550e8400-e29b-41d4-a716-446655440000",
       "text": "I agree with your comment!",
       "createdAt": "2023-09-06T10:35:00.000Z"
     }
@@ -674,10 +729,18 @@ Authorization: Bearer <your-jwt-token>
 ### POST /posts/:id/pin
 **Purpose**: Pin a post (Mock Implementation)  
 **Business Logic**: Currently returns success message, actual pin functionality to be implemented  
-**Authentication**: JWT required
+**Authentication**: Requires userId and email in request body
 
 **Path Parameters**:
 - `id`: Post ID (ObjectId)
+
+**Request Body**:
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com"
+}
+```
 
 **Response (201 Created)**:
 ```json
@@ -696,10 +759,18 @@ Authorization: Bearer <your-jwt-token>
 ### POST /posts/:id/save
 **Purpose**: Save a post (Mock Implementation)  
 **Business Logic**: Currently returns success message, actual save functionality to be implemented  
-**Authentication**: JWT required
+**Authentication**: Requires userId and email in request body
 
 **Path Parameters**:
 - `id`: Post ID (ObjectId)
+
+**Request Body**:
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com"
+}
+```
 
 **Response (201 Created)**:
 ```json
@@ -763,7 +834,7 @@ Authorization: Bearer <your-jwt-token>
 ### POST /posts/:id/react
 **Purpose**: Add or update reaction to a post  
 **Business Logic**: Supports emoji reactions (love, laugh, wow, sad, angry), one reaction per user per post  
-**Authentication**: JWT required
+**Authentication**: Requires userId and email in request body
 
 **Path Parameters**:
 - `id`: Post ID (ObjectId)
@@ -771,19 +842,23 @@ Authorization: Bearer <your-jwt-token>
 **Request Body**:
 ```json
 {
-  "type": "love"
+  "type": "love",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com"
 }
 ```
 
 **Validation Rules**:
 - `type`: Enum ['love', 'laugh', 'wow', 'sad', 'angry'] (required)
+- `userId`: UUID string (required)
+- `email`: Valid email format (required)
 
 **Response (201 Created)**:
 ```json
 {
   "id": "64f8a1b2c3d4e5f6a7b8c9d0",
   "postId": "64f8a1b2c3d4e5f6a7b8c9d1",
-  "userId": "64f8a1b2c3d4e5f6a7b8c9d2",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
   "type": "love",
   "createdAt": "2023-09-06T10:30:00.000Z",
   "updatedAt": "2023-09-06T10:30:00.000Z"

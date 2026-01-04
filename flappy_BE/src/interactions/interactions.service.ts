@@ -2,19 +2,56 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Comment } from './schemas/comment.schema';
+import { Like } from './schemas/like.schema';
 import { Post } from '../posts/schemas/post.schema';
+import { User } from '../users/schemas/user.schema';
 import { CreateCommentDto, CreateReplyDto } from './dto/interaction.dto';
 
 @Injectable()
 export class InteractionsService {
   constructor(
     @InjectModel(Comment.name) private commentModel: Model<Comment>,
+    @InjectModel(Like.name) private likeModel: Model<Like>,
     @InjectModel(Post.name) private postModel: Model<Post>,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   async likePost(postId: string, userId: string) {
-    // Mock like functionality - implement actual like logic with separate collection
-    return { message: 'Post liked successfully' };
+    // Check if user already liked the post
+    const existingLike = await this.likeModel.findOne({ postId, userId });
+    
+    if (existingLike) {
+      // Unlike the post
+      await this.likeModel.deleteOne({ postId, userId });
+      const likeCount = await this.likeModel.countDocuments({ postId });
+      
+      return { 
+        message: 'Post unliked successfully',
+        isLiked: false,
+        likeCount
+      };
+    } else {
+      // Like the post
+      const like = new this.likeModel({ postId, userId });
+      await like.save();
+      const likeCount = await this.likeModel.countDocuments({ postId });
+      
+      return { 
+        message: 'Post liked successfully',
+        isLiked: true,
+        likeCount
+      };
+    }
+  }
+
+  async getPostLikes(postId: string, userId?: string) {
+    const likeCount = await this.likeModel.countDocuments({ postId });
+    const isLiked = userId ? await this.likeModel.exists({ postId, userId }) : false;
+    
+    return {
+      likeCount,
+      isLiked: !!isLiked
+    };
   }
 
   async commentOnPost(postId: string, createCommentDto: CreateCommentDto, userId: string) {
@@ -56,10 +93,35 @@ export class InteractionsService {
   }
 
   async getComments(postId: string) {
-    return this.commentModel
+    const comments = await this.commentModel
       .find({ postId })
-      .populate('userId', 'username profilePhotoUrl')
-      .populate('replies.userId', 'username profilePhotoUrl')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Manually populate user data for comments and replies
+    const commentsWithUsers = await Promise.all(
+      comments.map(async (comment) => {
+        const user = await this.userModel.findOne({ userId: comment.userId }, 'username profilePhotoUrl userId').lean();
+        
+        // Populate replies with user data
+        const repliesWithUsers = await Promise.all(
+          (comment.replies || []).map(async (reply) => {
+            const replyUser = await this.userModel.findOne({ userId: reply.userId }, 'username profilePhotoUrl userId').lean();
+            return {
+              ...reply,
+              userId: replyUser || { userId: reply.userId, username: 'Unknown User', profilePhotoUrl: null }
+            };
+          })
+        );
+
+        return {
+          ...comment,
+          userId: user || { userId: comment.userId, username: 'Unknown User', profilePhotoUrl: null },
+          replies: repliesWithUsers
+        };
+      })
+    );
+
+    return commentsWithUsers;
   }
 }

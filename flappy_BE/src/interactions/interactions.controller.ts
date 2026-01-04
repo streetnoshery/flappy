@@ -3,59 +3,84 @@ import {
   Post, 
   Get, 
   Param, 
-  Body, 
-  UseGuards, 
-  Request 
+  Body,
+  Query
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { InteractionsService } from './interactions.service';
-import { CreateCommentDto, CreateReplyDto } from './dto/interaction.dto';
+import { CreateCommentDto, CreateReplyDto, LikePostDto, PinPostDto, SavePostDto } from './dto/interaction.dto';
 
 @Controller('posts')
 export class InteractionsController {
   constructor(private readonly interactionsService: InteractionsService) {}
 
   @Post(':id/like')
-  @UseGuards(JwtAuthGuard)
-  async likePost(@Param('id') postId: string, @Request() req: any) {
-    console.log('❤️ [INTERACTIONS] POST /posts/:id/like - Liking post', {
+  async likePost(@Param('id') postId: string, @Body() likePostDto: LikePostDto) {
+    console.log('❤️ [INTERACTIONS] POST /posts/:id/like - Toggling like on post', {
       postId: postId,
-      userId: req.user._id,
+      userId: likePostDto.userId,
+      email: likePostDto.email,
       timestamp: new Date().toISOString()
     });
     
     try {
-      const result = await this.interactionsService.likePost(postId, req.user._id);
-      console.log('✅ [INTERACTIONS] POST /posts/:id/like - Post liked successfully', {
+      const result = await this.interactionsService.likePost(postId, likePostDto.userId);
+      console.log('✅ [INTERACTIONS] POST /posts/:id/like - Like toggled successfully', {
         postId: postId,
-        userId: req.user._id
+        userId: likePostDto.userId,
+        isLiked: result.isLiked,
+        likeCount: result.likeCount
       });
       return result;
     } catch (error) {
-      console.error('❌ [INTERACTIONS] POST /posts/:id/like - Failed to like post', {
+      console.error('❌ [INTERACTIONS] POST /posts/:id/like - Failed to toggle like', {
         error: error.message,
         postId: postId,
-        userId: req.user._id
+        userId: likePostDto.userId
+      });
+      throw error;
+    }
+  }
+
+  @Get(':id/likes')
+  async getPostLikes(@Param('id') postId: string, @Query('userId') userId?: string) {
+    console.log('📊 [INTERACTIONS] GET /posts/:id/likes - Fetching like information', {
+      postId: postId,
+      userId: userId,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const result = await this.interactionsService.getPostLikes(postId, userId);
+      console.log('✅ [INTERACTIONS] GET /posts/:id/likes - Like information retrieved', {
+        postId: postId,
+        likeCount: result.likeCount,
+        isLiked: result.isLiked
+      });
+      return result;
+    } catch (error) {
+      console.error('❌ [INTERACTIONS] GET /posts/:id/likes - Failed to retrieve like information', {
+        error: error.message,
+        postId: postId
       });
       throw error;
     }
   }
 
   @Post(':id/comment')
-  @UseGuards(JwtAuthGuard)
-  async commentOnPost(@Param('id') postId: string, @Body() createCommentDto: CreateCommentDto, @Request() req: any) {
+  async commentOnPost(@Param('id') postId: string, @Body() createCommentDto: CreateCommentDto) {
     console.log('💬 [INTERACTIONS] POST /posts/:id/comment - Adding comment', {
       postId: postId,
-      userId: req.user._id,
+      userId: createCommentDto.userId,
+      email: createCommentDto.email,
       commentLength: createCommentDto.text?.length,
       timestamp: new Date().toISOString()
     });
     
     try {
-      const comment = await this.interactionsService.commentOnPost(postId, createCommentDto, req.user._id);
+      const comment = await this.interactionsService.commentOnPost(postId, createCommentDto, createCommentDto.userId);
       console.log('✅ [INTERACTIONS] POST /posts/:id/comment - Comment added successfully', {
         postId: postId,
-        userId: req.user._id,
+        userId: createCommentDto.userId,
         commentId: comment._id
       });
       return comment;
@@ -63,34 +88,33 @@ export class InteractionsController {
       console.error('❌ [INTERACTIONS] POST /posts/:id/comment - Failed to add comment', {
         error: error.message,
         postId: postId,
-        userId: req.user._id
+        userId: createCommentDto.userId
       });
       throw error;
     }
   }
 
   @Post(':id/comment/:commentId/reply')
-  @UseGuards(JwtAuthGuard)
   async replyToComment(
     @Param('id') postId: string,
     @Param('commentId') commentId: string,
-    @Body() createReplyDto: CreateReplyDto,
-    @Request() req: any
+    @Body() createReplyDto: CreateReplyDto
   ) {
     console.log('↩️ [INTERACTIONS] POST /posts/:id/comment/:commentId/reply - Adding reply', {
       postId: postId,
       commentId: commentId,
-      userId: req.user._id,
+      userId: createReplyDto.userId,
+      email: createReplyDto.email,
       replyLength: createReplyDto.text?.length,
       timestamp: new Date().toISOString()
     });
     
     try {
-      const comment = await this.interactionsService.replyToComment(commentId, createReplyDto, req.user._id);
+      const comment = await this.interactionsService.replyToComment(commentId, createReplyDto, createReplyDto.userId);
       console.log('✅ [INTERACTIONS] POST /posts/:id/comment/:commentId/reply - Reply added successfully', {
         postId: postId,
         commentId: commentId,
-        userId: req.user._id
+        userId: createReplyDto.userId
       });
       return comment;
     } catch (error) {
@@ -98,59 +122,59 @@ export class InteractionsController {
         error: error.message,
         postId: postId,
         commentId: commentId,
-        userId: req.user._id
+        userId: createReplyDto.userId
       });
       throw error;
     }
   }
 
   @Post(':id/pin')
-  @UseGuards(JwtAuthGuard)
-  async pinPost(@Param('id') postId: string, @Request() req: any) {
+  async pinPost(@Param('id') postId: string, @Body() pinPostDto: PinPostDto) {
     console.log('📌 [INTERACTIONS] POST /posts/:id/pin - Pinning post', {
       postId: postId,
-      userId: req.user._id,
+      userId: pinPostDto.userId,
+      email: pinPostDto.email,
       timestamp: new Date().toISOString()
     });
     
     try {
-      const result = await this.interactionsService.pinPost(postId, req.user._id);
+      const result = await this.interactionsService.pinPost(postId, pinPostDto.userId);
       console.log('✅ [INTERACTIONS] POST /posts/:id/pin - Post pinned successfully', {
         postId: postId,
-        userId: req.user._id
+        userId: pinPostDto.userId
       });
       return result;
     } catch (error) {
       console.error('❌ [INTERACTIONS] POST /posts/:id/pin - Failed to pin post', {
         error: error.message,
         postId: postId,
-        userId: req.user._id
+        userId: pinPostDto.userId
       });
       throw error;
     }
   }
 
   @Post(':id/save')
-  @UseGuards(JwtAuthGuard)
-  async savePost(@Param('id') postId: string, @Request() req: any) {
+  async savePost(@Param('id') postId: string, @Body() savePostDto: SavePostDto) {
     console.log('💾 [INTERACTIONS] POST /posts/:id/save - Saving post', {
       postId: postId,
-      userId: req.user._id,
+      userId: savePostDto.userId,
+      email: savePostDto.email,
       timestamp: new Date().toISOString()
     });
     
     try {
-      const result = await this.interactionsService.savePost(postId, req.user._id);
+      const result = await this.interactionsService.savePost(postId, savePostDto.userId);
       console.log('✅ [INTERACTIONS] POST /posts/:id/save - Post saved successfully', {
         postId: postId,
-        userId: req.user._id
+        userId: savePostDto.userId
       });
       return result;
     } catch (error) {
       console.error('❌ [INTERACTIONS] POST /posts/:id/save - Failed to save post', {
         error: error.message,
         postId: postId,
-        userId: req.user._id
+        userId: savePostDto.userId
       });
       throw error;
     }

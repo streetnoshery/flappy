@@ -2,15 +2,20 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Post } from './schemas/post.schema';
+import { User } from '../users/schemas/user.schema';
 import { CreatePostDto, UpdatePostDto } from './dto/post.dto';
 
 @Injectable()
 export class PostsService {
-  constructor(@InjectModel(Post.name) private postModel: Model<Post>) {}
+  constructor(
+    @InjectModel(Post.name) private postModel: Model<Post>,
+    @InjectModel(User.name) private userModel: Model<User>
+  ) {}
 
-  async create(createPostDto: CreatePostDto, userId: string) {
+  async create(createPostDto: CreatePostDto) {
     console.log('📝 [POSTS_SERVICE] Creating new post', {
-      userId,
+      userId: createPostDto.userId,
+      email: createPostDto.email,
       postType: createPostDto.type,
       contentLength: createPostDto.content?.length,
       hasMedia: !!createPostDto.mediaUrl
@@ -23,15 +28,18 @@ export class PostsService {
     });
     
     const post = new this.postModel({
-      ...createPostDto,
-      userId,
+      userId: createPostDto.userId,
+      email: createPostDto.email,
+      type: createPostDto.type,
+      content: createPostDto.content,
+      mediaUrl: createPostDto.mediaUrl,
       hashtags,
     });
     
     const savedPost = await post.save();
     console.log('✅ [POSTS_SERVICE] Post created successfully', {
       postId: savedPost._id,
-      userId,
+      userId: createPostDto.userId,
       hashtagsExtracted: hashtags.length
     });
     
@@ -41,11 +49,18 @@ export class PostsService {
   async findById(id: string) {
     console.log('📖 [POSTS_SERVICE] Fetching post by ID', { postId: id });
     
-    const post = await this.postModel.findById(id).populate('userId', 'username profilePhotoUrl');
+    const post = await this.postModel.findById(id).lean();
     if (!post) {
       console.log('❌ [POSTS_SERVICE] Post not found', { postId: id });
       throw new NotFoundException('Post not found');
     }
+    
+    // Manually populate user data
+    const user = await this.userModel.findOne({ userId: post.userId }, 'username profilePhotoUrl userId').lean();
+    const postWithUser = {
+      ...post,
+      userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null }
+    };
     
     console.log('✅ [POSTS_SERVICE] Post retrieved successfully', {
       postId: id,
@@ -53,13 +68,13 @@ export class PostsService {
       postType: post.type
     });
     
-    return post;
+    return postWithUser;
   }
 
-  async update(id: string, updatePostDto: UpdatePostDto, userId: string) {
+  async update(id: string, updatePostDto: UpdatePostDto) {
     console.log('✏️ [POSTS_SERVICE] Updating post', {
       postId: id,
-      userId,
+      userId: updatePostDto.userId,
       updateFields: Object.keys(updatePostDto)
     });
     
@@ -69,11 +84,11 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
     
-    if (post.userId.toString() !== userId) {
+    if (post.userId !== updatePostDto.userId) {
       console.log('❌ [POSTS_SERVICE] Unauthorized post update attempt', {
         postId: id,
         postOwnerId: post.userId,
-        requestUserId: userId
+        requestUserId: updatePostDto.userId
       });
       throw new ForbiddenException('You can only update your own posts');
     }
@@ -86,17 +101,28 @@ export class PostsService {
     
     const updatedPost = await this.postModel.findByIdAndUpdate(
       id,
-      { ...updatePostDto, hashtags },
+      { 
+        content: updatePostDto.content,
+        mediaUrl: updatePostDto.mediaUrl,
+        hashtags 
+      },
       { new: true }
-    ).populate('userId', 'username profilePhotoUrl');
+    ).lean();
+    
+    // Manually populate user data
+    const user = await this.userModel.findOne({ userId: updatedPost.userId }, 'username profilePhotoUrl userId').lean();
+    const postWithUser = {
+      ...updatedPost,
+      userId: user || { userId: updatedPost.userId, username: 'Unknown User', profilePhotoUrl: null }
+    };
     
     console.log('✅ [POSTS_SERVICE] Post updated successfully', {
       postId: id,
-      userId,
+      userId: updatePostDto.userId,
       updatedFields: Object.keys(updatePostDto)
     });
     
-    return updatedPost;
+    return postWithUser;
   }
 
   async delete(id: string, userId: string) {
@@ -111,7 +137,7 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
     
-    if (post.userId.toString() !== userId) {
+    if (post.userId !== userId) {
       console.log('❌ [POSTS_SERVICE] Unauthorized post deletion attempt', {
         postId: id,
         postOwnerId: post.userId,

@@ -1,6 +1,6 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SignupDto, LoginDto, VerifyOtpDto, RefreshTokenDto } from './dto/auth.dto';
+import { SignupDto, LoginDto, VerifyOtpDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -18,7 +18,7 @@ export class AuthController {
     try {
       const result = await this.authService.signup(signupDto);
       console.log('✅ [AUTH] POST /auth/signup - Registration successful', {
-        userId: result.user?.id,
+        userId: result.user?.userId,
         email: result.user?.email,
         username: result.user?.username
       });
@@ -44,7 +44,7 @@ export class AuthController {
     try {
       const result = await this.authService.login(loginDto);
       console.log('✅ [AUTH] POST /auth/login - Login successful', {
-        userId: result.user?.id,
+        userId: result.user?.userId,
         email: result.user?.email,
         username: result.user?.username
       });
@@ -76,25 +76,6 @@ export class AuthController {
       console.error('❌ [AUTH] POST /auth/otp/verify - OTP verification failed', {
         error: error.message,
         phone: verifyOtpDto.phone
-      });
-      throw error;
-    }
-  }
-
-  @Post('token/refresh')
-  @HttpCode(HttpStatus.OK)
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    console.log('🔄 [AUTH] POST /auth/token/refresh - Token refresh attempt', {
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const result = await this.authService.refreshToken(refreshTokenDto);
-      console.log('✅ [AUTH] POST /auth/token/refresh - Token refresh successful');
-      return result;
-    } catch (error) {
-      console.error('❌ [AUTH] POST /auth/token/refresh - Token refresh failed', {
-        error: error.message
       });
       throw error;
     }

@@ -2,27 +2,74 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Post, PostDocument } from '../posts/schemas/post.schema';
+import { User } from '../users/schemas/user.schema';
+import { Like } from '../interactions/schemas/like.schema';
+import { Reaction } from '../reactions/schemas/reaction.schema';
 
 @Injectable()
 export class FeedService {
-  constructor(@InjectModel(Post.name) private postModel: Model<PostDocument>) {}
+  constructor(
+    @InjectModel(Post.name) private postModel: Model<PostDocument>,
+    @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Like.name) private likeModel: Model<Like>,
+    @InjectModel(Reaction.name) private reactionModel: Model<Reaction>
+  ) {}
 
-  async getHomeFeed(page: number = 1) {
+  async getHomeFeed(page: number = 1, userId?: string) {
     const limit = 10;
     const skip = (page - 1) * limit;
     
     console.log('🏠 [FEED_SERVICE] Fetching home feed', {
       page,
       limit,
-      skip
+      skip,
+      userId
     });
     
     const posts = await this.postModel
       .find()
-      .populate('userId', 'username profilePhotoUrl')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
+    
+    // Manually populate user data and reaction information
+    const postsWithUsers = await Promise.all(
+      posts.map(async (post) => {
+        const user = await this.userModel.findOne({ userId: post.userId }, 'username profilePhotoUrl userId').lean();
+        
+        // Get reaction information
+        const reactionCounts = await this.reactionModel.aggregate([
+          { $match: { postId: post._id.toString() } },
+          { $group: { _id: '$type', count: { $sum: 1 } } },
+        ]);
+        
+        const reactions = reactionCounts.reduce((acc, reaction) => {
+          acc[reaction._id] = reaction.count;
+          return acc;
+        }, {});
+        
+        // Get user's reaction if userId provided
+        let userReaction = null;
+        if (userId) {
+          const userReactionDoc = await this.reactionModel.findOne({ 
+            postId: post._id.toString(), 
+            userId 
+          }).lean();
+          userReaction = userReactionDoc ? userReactionDoc.type : null;
+        }
+        
+        return {
+          ...post,
+          userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
+          reactions,
+          userReaction,
+          // Keep like count for backward compatibility (sum of all reactions)
+          likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
+          isLiked: userReaction === 'love' // Heart is filled if user reacted with love
+        };
+      })
+    );
     
     const hasMore = posts.length === limit;
     
@@ -35,13 +82,13 @@ export class FeedService {
     });
     
     return {
-      posts,
+      posts: postsWithUsers,
       page,
       hasMore,
     };
   }
 
-  async getReelsFeed(page: number = 1) {
+  async getReelsFeed(page: number = 1, userId?: string) {
     const limit = 10;
     const skip = (page - 1) * limit;
     
@@ -49,15 +96,54 @@ export class FeedService {
       page,
       limit,
       skip,
-      filterTypes: ['gif', 'image']
+      filterTypes: ['gif', 'image'],
+      userId
     });
     
     const posts = await this.postModel
       .find({ type: { $in: ['gif', 'image'] } })
-      .populate('userId', 'username profilePhotoUrl')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
+    
+    // Manually populate user data and reaction information
+    const postsWithUsers = await Promise.all(
+      posts.map(async (post) => {
+        const user = await this.userModel.findOne({ userId: post.userId }, 'username profilePhotoUrl userId').lean();
+        
+        // Get reaction information
+        const reactionCounts = await this.reactionModel.aggregate([
+          { $match: { postId: post._id.toString() } },
+          { $group: { _id: '$type', count: { $sum: 1 } } },
+        ]);
+        
+        const reactions = reactionCounts.reduce((acc, reaction) => {
+          acc[reaction._id] = reaction.count;
+          return acc;
+        }, {});
+        
+        // Get user's reaction if userId provided
+        let userReaction = null;
+        if (userId) {
+          const userReactionDoc = await this.reactionModel.findOne({ 
+            postId: post._id.toString(), 
+            userId 
+          }).lean();
+          userReaction = userReactionDoc ? userReactionDoc.type : null;
+        }
+        
+        return {
+          ...post,
+          userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
+          reactions,
+          userReaction,
+          // Keep like count for backward compatibility (sum of all reactions)
+          likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
+          isLiked: userReaction === 'love' // Heart is filled if user reacted with love
+        };
+      })
+    );
     
     const hasMore = posts.length === limit;
     
@@ -69,13 +155,13 @@ export class FeedService {
     });
     
     return {
-      posts,
+      posts: postsWithUsers,
       page,
       hasMore,
     };
   }
 
-  async getExploreFeed(page: number = 1) {
+  async getExploreFeed(page: number = 1, userId?: string) {
     const limit = 10;
     const skip = (page - 1) * limit;
     
@@ -83,16 +169,55 @@ export class FeedService {
       page,
       limit,
       skip,
-      note: 'Currently using chronological sorting'
+      note: 'Currently using chronological sorting',
+      userId
     });
     
     // Mock engagement calculation - implement actual engagement logic
     const posts = await this.postModel
       .find()
-      .populate('userId', 'username profilePhotoUrl')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
+    
+    // Manually populate user data and reaction information
+    const postsWithUsers = await Promise.all(
+      posts.map(async (post) => {
+        const user = await this.userModel.findOne({ userId: post.userId }, 'username profilePhotoUrl userId').lean();
+        
+        // Get reaction information
+        const reactionCounts = await this.reactionModel.aggregate([
+          { $match: { postId: post._id.toString() } },
+          { $group: { _id: '$type', count: { $sum: 1 } } },
+        ]);
+        
+        const reactions = reactionCounts.reduce((acc, reaction) => {
+          acc[reaction._id] = reaction.count;
+          return acc;
+        }, {});
+        
+        // Get user's reaction if userId provided
+        let userReaction = null;
+        if (userId) {
+          const userReactionDoc = await this.reactionModel.findOne({ 
+            postId: post._id.toString(), 
+            userId 
+          }).lean();
+          userReaction = userReactionDoc ? userReactionDoc.type : null;
+        }
+        
+        return {
+          ...post,
+          userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
+          reactions,
+          userReaction,
+          // Keep like count for backward compatibility (sum of all reactions)
+          likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
+          isLiked: userReaction === 'love' // Heart is filled if user reacted with love
+        };
+      })
+    );
     
     const hasMore = posts.length === limit;
     
@@ -104,7 +229,7 @@ export class FeedService {
     });
     
     return {
-      posts,
+      posts: postsWithUsers,
       page,
       hasMore,
     };

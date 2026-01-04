@@ -17,6 +17,7 @@ export const FeatureFlagsProvider = ({ children }) => {
     enableGifPosts: false,
     enableVideoUploads: false,
     enableAdvancedSearch: false,
+    enableReactions: false,
   });
   const [enabledPostTypes, setEnabledPostTypes] = useState(['text']);
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,7 @@ export const FeatureFlagsProvider = ({ children }) => {
         enableGifPosts: false,
         enableVideoUploads: false,
         enableAdvancedSearch: false,
+        enableReactions: false,
       });
       setEnabledPostTypes(['text']);
     } finally {
@@ -64,11 +66,21 @@ export const FeatureFlagsProvider = ({ children }) => {
   };
 
   const isPostTypeEnabled = (type) => {
-    return enabledPostTypes.includes(type);
+    try {
+      return enabledPostTypes.includes(type);
+    } catch (error) {
+      console.error('❌ [FEATURE_FLAGS] Error checking if post type is enabled', error);
+      return type === 'text'; // Fallback to only allow text posts
+    }
   };
 
   const getEnabledPostTypes = () => {
-    return enabledPostTypes;
+    try {
+      return enabledPostTypes || ['text'];
+    } catch (error) {
+      console.error('❌ [FEATURE_FLAGS] Error getting enabled post types', error);
+      return ['text'];
+    }
   };
 
   const refreshFeatureFlags = () => {

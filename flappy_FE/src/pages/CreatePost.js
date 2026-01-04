@@ -1,30 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from 'react-query';
 import { Image, FileText, Film, AlertCircle } from 'lucide-react';
 import { postsAPI } from '../services/api';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const CreatePost = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user, loading: authLoading } = useAuth();
   const { isPostTypeEnabled, getEnabledPostTypes, loading: flagsLoading } = useFeatureFlags();
   const [postType, setPostType] = useState('text');
   const { register, handleSubmit, formState: { errors }, watch } = useForm();
+  const submissionInProgress = useRef(false);
 
   const content = watch('content', '');
+
+  // Check if user is authenticated
+  React.useEffect(() => {
+    if (!authLoading && !user) {
+      toast.error('Please login to create posts');
+      navigate('/login');
+    }
+  }, [user, authLoading, navigate]);
 
   const createPostMutation = useMutation(
     (data) => postsAPI.createPost(data),
     {
+      // Prevent multiple mutations with the same variables
+      mutationKey: ['createPost'],
+      onMutate: () => {
+        submissionInProgress.current = true;
+      },
       onSuccess: () => {
+        submissionInProgress.current = false;
         queryClient.invalidateQueries('homeFeed');
         toast.success('Post created successfully!');
         navigate('/');
       },
       onError: (error) => {
+        submissionInProgress.current = false;
         const errorMessage = error.response?.data?.message;
         if (Array.isArray(errorMessage)) {
           errorMessage.forEach(msg => toast.error(msg));
@@ -32,41 +50,73 @@ const CreatePost = () => {
           toast.error(errorMessage || 'Failed to create post');
         }
       },
+      // Prevent retry on mutation failure
+      retry: false,
     }
   );
 
-  const onSubmit = (data) => {
-    if (!isPostTypeEnabled(postType)) {
-      toast.error(`${postType} posts are currently disabled`);
+  const onSubmit = useCallback((data) => {
+    // Prevent multiple submissions
+    if (createPostMutation.isLoading || submissionInProgress.current) {
+      console.log('Submission already in progress, ignoring duplicate submission');
+      return;
+    }
+
+    try {
+      if (!isPostTypeEnabled(postType)) {
+        toast.error(`${postType} posts are currently disabled`);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking post type enabled:', error);
+      toast.error('Error validating post type');
       return;
     }
     
+    console.log('Submitting post creation:', { type: postType, content: data.content });
     createPostMutation.mutate({
       ...data,
       type: postType,
     });
-  };
+  }, [createPostMutation, isPostTypeEnabled, postType]);
 
-  const allPostTypes = [
+  const allPostTypes = useMemo(() => [
     { id: 'text', label: 'Text', icon: FileText },
     { id: 'image', label: 'Image', icon: Image },
     { id: 'gif', label: 'GIF', icon: Film },
-  ];
+  ], []);
 
   // Filter post types based on feature flags
-  const availablePostTypes = allPostTypes.filter(type => isPostTypeEnabled(type.id));
+  const availablePostTypes = useMemo(() => 
+    allPostTypes.filter(type => isPostTypeEnabled(type.id)),
+    [allPostTypes, isPostTypeEnabled]
+  );
+
+  // Get enabled types once to avoid function calls in useEffect dependencies
+  const enabledTypes = useMemo(() => {
+    try {
+      return getEnabledPostTypes();
+    } catch (error) {
+      console.error('Error getting enabled post types:', error);
+      return ['text'];
+    }
+  }, [getEnabledPostTypes]);
 
   // Set default post type to first available if current is not enabled
   React.useEffect(() => {
-    if (!flagsLoading && !isPostTypeEnabled(postType)) {
-      const enabledTypes = getEnabledPostTypes();
-      if (enabledTypes.length > 0) {
-        setPostType(enabledTypes[0]);
+    if (!flagsLoading && enabledTypes.length > 0) {
+      try {
+        if (!isPostTypeEnabled(postType)) {
+          setPostType(enabledTypes[0]);
+        }
+      } catch (error) {
+        console.error('Error checking post type enabled:', error);
+        setPostType('text'); // Fallback to text
       }
     }
-  }, [flagsLoading, postType, isPostTypeEnabled, getEnabledPostTypes]);
+  }, [flagsLoading, postType, isPostTypeEnabled, enabledTypes]);
 
-  if (flagsLoading) {
+  if (authLoading || flagsLoading) {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -84,6 +134,11 @@ const CreatePost = () => {
         </div>
       </div>
     );
+  }
+
+  // Don't render if user is not authenticated
+  if (!user) {
+    return null;
   }
 
   return (
@@ -114,7 +169,8 @@ const CreatePost = () => {
                     key={type.id}
                     type="button"
                     onClick={() => setPostType(type.id)}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
+                    disabled={createPostMutation.isLoading}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 ${
                       postType === type.id
                         ? 'border-primary-500 bg-primary-50 text-primary-700'
                         : 'border-gray-300 hover:border-gray-400'
@@ -162,7 +218,8 @@ const CreatePost = () => {
             <textarea
               {...register('content', { required: 'Content is required' })}
               rows={6}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              disabled={createPostMutation.isLoading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none disabled:opacity-50"
               placeholder="What's on your mind?"
             />
             {errors.content && (
@@ -184,7 +241,8 @@ const CreatePost = () => {
                   required: postType !== 'text' ? 'Media URL is required' : false 
                 })}
                 type="url"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                disabled={createPostMutation.isLoading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
                 placeholder="Enter image or GIF URL"
               />
               {errors.mediaUrl && (
@@ -195,10 +253,42 @@ const CreatePost = () => {
 
           {/* Actions */}
           <div className="flex justify-end space-x-4">
+            {/* Debug button for testing auth */}
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  // Check local storage first
+                  const user = localStorage.getItem('user');
+                  
+                  console.log('🔍 [DEBUG] Current auth state:', {
+                    hasUser: !!user,
+                    user: user ? JSON.parse(user) : null
+                  });
+                  
+                  if (!user) {
+                    toast.error('No user data found. Please login again.');
+                    return;
+                  }
+                  
+                  const response = await postsAPI.testAuth();
+                  toast.success('Auth test successful!');
+                  console.log('Auth test response:', response.data);
+                } catch (error) {
+                  toast.error('Auth test failed: ' + (error.response?.data?.message || error.message));
+                  console.error('Auth test error:', error);
+                }
+              }}
+              disabled={createPostMutation.isLoading}
+              className="px-4 py-2 text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors disabled:opacity-50"
+            >
+              Test Auth
+            </button>
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              disabled={createPostMutation.isLoading}
+              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

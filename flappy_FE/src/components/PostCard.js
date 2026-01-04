@@ -1,21 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal } from 'lucide-react';
 import { interactionsAPI, reactionsAPI } from '../services/api';
 import { useMutation, useQueryClient } from 'react-query';
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import toast from 'react-hot-toast';
 
 const PostCard = ({ post }) => {
   const [showReactions, setShowReactions] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [userReaction, setUserReaction] = useState(null);
   const queryClient = useQueryClient();
+  const { isFeatureEnabled } = useFeatureFlags();
+
+  // Initialize state from post data
+  useEffect(() => {
+    console.log('PostCard useEffect - initializing state:', {
+      postId: post._id,
+      postIsLiked: post.isLiked,
+      postLikeCount: post.likeCount,
+      postUserReaction: post.userReaction
+    });
+    
+    setIsLiked(post.isLiked || false);
+    setLikeCount(post.likeCount || 0);
+    setUserReaction(post.userReaction || null);
+  }, [post]);
 
   const likeMutation = useMutation(
     () => interactionsAPI.likePost(post._id),
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries('homeFeed');
-        toast.success('Post liked!');
+      onSuccess: (response) => {
+        console.log('Full API Response:', response);
+        const data = response.data;
+        console.log('Extracted data:', data);
+        
+        if (data && typeof data === 'object') {
+          const newIsLiked = data.isReacted === true && data.reactionType === 'love';
+          const newUserReaction = data.isReacted ? data.reactionType : null;
+          const newLikeCount = data.reactionCounts ? 
+            Object.values(data.reactionCounts).reduce((sum, count) => sum + count, 0) : 0;
+          
+          console.log('Updating states:', {
+            newIsLiked,
+            newUserReaction,
+            newLikeCount,
+            dataIsReacted: data.isReacted,
+            dataReactionType: data.reactionType
+          });
+          
+          setIsLiked(newIsLiked);
+          setUserReaction(newUserReaction);
+          setLikeCount(newLikeCount);
+          
+          queryClient.invalidateQueries('homeFeed');
+          toast.success(newIsLiked ? 'Post liked!' : 'Like removed!');
+        } else {
+          console.error('Invalid response data:', data);
+          toast.error('Invalid response from server');
+        }
       },
+      onError: (error) => {
+        console.error('Like API Error:', error);
+        toast.error('Failed to toggle like');
+      }
     }
   );
 
@@ -31,10 +80,22 @@ const PostCard = ({ post }) => {
   const reactionMutation = useMutation(
     (type) => reactionsAPI.reactToPost(post._id, { type }),
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries('homeFeed');
-        setShowReactions(false);
-        toast.success('Reaction added!');
+      onSuccess: (response) => {
+        const data = response.data;
+        if (data && typeof data === 'object') {
+          const newUserReaction = data.isReacted ? data.reactionType : null;
+          const newIsLiked = data.isReacted && data.reactionType === 'love';
+          const newLikeCount = data.reactionCounts ? 
+            Object.values(data.reactionCounts).reduce((sum, count) => sum + count, 0) : 0;
+          
+          setUserReaction(newUserReaction);
+          setIsLiked(newIsLiked);
+          setLikeCount(newLikeCount);
+          
+          queryClient.invalidateQueries('homeFeed');
+          setShowReactions(false);
+          toast.success(data.isReacted ? 'Reaction added!' : 'Reaction removed!');
+        }
       },
     }
   );
@@ -47,6 +108,13 @@ const PostCard = ({ post }) => {
     sad: '😢',
     angry: '😡'
   };
+
+  console.log('PostCard render - current state:', {
+    isLiked,
+    likeCount,
+    userReaction,
+    postId: post._id
+  });
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -117,22 +185,45 @@ const PostCard = ({ post }) => {
       <div className="border-t border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="relative">
+            <div className="relative flex items-center">
               <button
-                onClick={() => setShowReactions(!showReactions)}
-                className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors"
+                onClick={() => {
+                  console.log('Heart clicked - before mutation:', { isLiked, userReaction });
+                  likeMutation.mutate();
+                }}
+                disabled={likeMutation.isLoading}
+                className={`flex items-center space-x-2 transition-colors ${
+                  isLiked 
+                    ? 'text-red-600' 
+                    : 'text-gray-600 hover:text-red-600'
+                }`}
               >
-                <Heart className="w-5 h-5" />
-                <span className="text-sm">Like</span>
+                <Heart 
+                  className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} 
+                />
+                <span className="text-sm">
+                  {likeCount > 0 ? likeCount : 'Like'}
+                </span>
               </button>
               
-              {showReactions && (
+              {isFeatureEnabled('enableReactions') && (
+                <button
+                  onClick={() => setShowReactions(!showReactions)}
+                  className="ml-2 text-xs text-gray-500 hover:text-gray-700"
+                >
+                  React
+                </button>
+              )}
+              
+              {isFeatureEnabled('enableReactions') && showReactions && (
                 <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg p-2 flex space-x-2">
                   {reactions.map((reaction) => (
                     <button
                       key={reaction}
                       onClick={() => reactionMutation.mutate(reaction)}
-                      className="text-2xl hover:scale-110 transition-transform"
+                      className={`text-2xl hover:scale-110 transition-transform ${
+                        userReaction === reaction ? 'scale-110 ring-2 ring-blue-300 rounded-full' : ''
+                      }`}
                     >
                       {reactionEmojis[reaction]}
                     </button>

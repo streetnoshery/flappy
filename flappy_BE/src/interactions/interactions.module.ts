@@ -3,13 +3,17 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { InteractionsController } from './interactions.controller';
 import { InteractionsService } from './interactions.service';
 import { Comment, CommentSchema } from './schemas/comment.schema';
+import { Like, LikeSchema } from './schemas/like.schema';
 import { Post, PostSchema } from '../posts/schemas/post.schema';
+import { User, UserSchema } from '../users/schemas/user.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Comment.name, schema: CommentSchema },
+      { name: Like.name, schema: LikeSchema },
       { name: Post.name, schema: PostSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [InteractionsController],

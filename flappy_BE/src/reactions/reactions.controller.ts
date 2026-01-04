@@ -1,5 +1,4 @@
-import { Controller, Post, Get, Param, Body, UseGuards, Request } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Controller, Post, Get, Param, Body, Query } from '@nestjs/common';
 import { ReactionsService } from './reactions.service';
 import { CreateReactionDto } from './dto/reaction.dto';
 
@@ -8,30 +7,57 @@ export class ReactionsController {
   constructor(private readonly reactionsService: ReactionsService) {}
 
   @Post(':id/react')
-  @UseGuards(JwtAuthGuard)
-  async reactToPost(@Param('id') postId: string, @Body() createReactionDto: CreateReactionDto, @Request() req: any) {
-    console.log('😊 [REACTIONS] POST /posts/:id/react - Adding reaction to post', {
+  async reactToPost(@Param('id') postId: string, @Body() createReactionDto: CreateReactionDto) {
+    console.log('😊 [REACTIONS] POST /posts/:id/react - Adding/toggling reaction to post', {
       postId: postId,
-      userId: req.user._id,
+      userId: createReactionDto.userId,
+      email: createReactionDto.email,
       reactionType: createReactionDto.type,
       timestamp: new Date().toISOString()
     });
     
     try {
-      const reaction = await this.reactionsService.reactToPost(postId, createReactionDto, req.user._id);
-      console.log('✅ [REACTIONS] POST /posts/:id/react - Reaction added successfully', {
+      const reaction = await this.reactionsService.reactToPost(postId, createReactionDto, createReactionDto.userId);
+      console.log('✅ [REACTIONS] POST /posts/:id/react - Reaction processed successfully', {
         postId: postId,
-        userId: req.user._id,
+        userId: createReactionDto.userId,
         reactionType: createReactionDto.type,
-        reactionId: reaction._id
+        isReacted: reaction.isReacted,
+        currentReaction: reaction.reactionType
       });
       return reaction;
     } catch (error) {
-      console.error('❌ [REACTIONS] POST /posts/:id/react - Failed to add reaction', {
+      console.error('❌ [REACTIONS] POST /posts/:id/react - Failed to process reaction', {
         error: error.message,
         postId: postId,
-        userId: req.user._id,
+        userId: createReactionDto.userId,
         reactionType: createReactionDto.type
+      });
+      throw error;
+    }
+  }
+
+  @Get(':id/user-reaction')
+  async getUserReaction(@Param('id') postId: string, @Query('userId') userId: string) {
+    console.log('👤 [REACTIONS] GET /posts/:id/user-reaction - Fetching user reaction', {
+      postId: postId,
+      userId: userId,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const reactionType = await this.reactionsService.getUserReaction(postId, userId);
+      console.log('✅ [REACTIONS] GET /posts/:id/user-reaction - User reaction retrieved', {
+        postId: postId,
+        userId: userId,
+        reactionType: reactionType
+      });
+      return { reactionType };
+    } catch (error) {
+      console.error('❌ [REACTIONS] GET /posts/:id/user-reaction - Failed to retrieve user reaction', {
+        error: error.message,
+        postId: postId,
+        userId: userId
       });
       throw error;
     }

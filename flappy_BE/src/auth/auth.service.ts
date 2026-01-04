@@ -1,16 +1,15 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 import { User } from '../users/schemas/user.schema';
-import { SignupDto, LoginDto, VerifyOtpDto, RefreshTokenDto } from './dto/auth.dto';
+import { SignupDto, LoginDto, VerifyOtpDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
-    private jwtService: JwtService,
   ) {}
 
   async signup(signupDto: SignupDto) {
@@ -37,12 +36,17 @@ export class AuthService {
       throw new ConflictException('User already exists');
     }
 
+    // Generate unique userId
+    const userId = uuidv4();
+    console.log('🆔 [AUTH_SERVICE] Generated userId', { userId });
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
     console.log('🔒 [AUTH_SERVICE] Password hashed successfully');
     
     // Create user
     const user = new this.userModel({
+      userId,
       email,
       phone,
       username,
@@ -51,25 +55,20 @@ export class AuthService {
     
     await user.save();
     console.log('✅ [AUTH_SERVICE] User created in database', {
-      userId: user._id,
+      userId: user.userId,
+      mongoId: user._id,
       email: user.email,
       username: user.username
-    });
-    
-    // Generate tokens
-    const tokens = this.generateTokens(user._id.toString());
-    console.log('🎫 [AUTH_SERVICE] JWT tokens generated for new user', {
-      userId: user._id
     });
     
     return {
       message: 'User created successfully',
       user: {
+        userId: user.userId,
         id: user._id,
         email: user.email,
         username: user.username,
       },
-      ...tokens,
     };
   }
 
@@ -95,31 +94,26 @@ export class AuthService {
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) {
       console.log('❌ [AUTH_SERVICE] Login failed - invalid password', {
-        userId: user._id,
+        userId: user.userId,
         email: user.email
       });
       throw new UnauthorizedException('Invalid credentials');
     }
     
     console.log('✅ [AUTH_SERVICE] User authenticated successfully', {
-      userId: user._id,
+      userId: user.userId,
       email: user.email,
       username: user.username
-    });
-    
-    const tokens = this.generateTokens(user._id.toString());
-    console.log('🎫 [AUTH_SERVICE] JWT tokens generated for login', {
-      userId: user._id
     });
     
     return {
       message: 'Login successful',
       user: {
+        userId: user.userId,
         id: user._id,
         email: user.email,
         username: user.username,
       },
-      ...tokens,
     };
   }
 
@@ -145,41 +139,5 @@ export class AuthService {
     });
     
     return { message: 'OTP verified successfully' };
-  }
-
-  async refreshToken(refreshTokenDto: RefreshTokenDto) {
-    console.log('🔄 [AUTH_SERVICE] Attempting to refresh token');
-    
-    try {
-      const payload = this.jwtService.verify(refreshTokenDto.refreshToken);
-      console.log('✅ [AUTH_SERVICE] Refresh token validated', {
-        userId: payload.sub
-      });
-      
-      const tokens = this.generateTokens(payload.sub);
-      console.log('🎫 [AUTH_SERVICE] New tokens generated', {
-        userId: payload.sub
-      });
-      
-      return tokens;
-    } catch (error) {
-      console.log('❌ [AUTH_SERVICE] Refresh token validation failed', {
-        error: error.message
-      });
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-  }
-
-  private generateTokens(userId: string) {
-    const payload = { sub: userId };
-    
-    console.log('🎫 [AUTH_SERVICE] Generating JWT tokens', {
-      userId
-    });
-    
-    return {
-      accessToken: this.jwtService.sign(payload),
-      refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
-    };
   }
 }

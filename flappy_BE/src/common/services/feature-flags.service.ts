@@ -5,6 +5,7 @@ export interface FeatureFlags {
   enableGifPosts: boolean;
   enableVideoUploads: boolean;
   enableAdvancedSearch: boolean;
+  enableReactions: boolean;
 }
 
 @Injectable()
@@ -14,6 +15,7 @@ export class FeatureFlagsService {
     enableGifPosts: process.env.ENABLE_GIF_POSTS === 'true',
     enableVideoUploads: process.env.ENABLE_VIDEO_UPLOADS === 'true',
     enableAdvancedSearch: process.env.ENABLE_ADVANCED_SEARCH === 'true',
+    enableReactions: process.env.ENABLE_REACTIONS === 'true',
   };
 
   getFlags(): FeatureFlags {
@@ -34,35 +36,54 @@ export class FeatureFlagsService {
   }
 
   getEnabledPostTypes(): string[] {
-    const enabledTypes = ['text']; // Text posts are always enabled
-    
-    if (this.isFeatureEnabled('enableImagePosts')) {
-      enabledTypes.push('image');
+    try {
+      const enabledTypes = ['text']; // Text posts are always enabled
+      
+      if (this.isFeatureEnabled('enableImagePosts')) {
+        enabledTypes.push('image');
+      }
+      
+      if (this.isFeatureEnabled('enableGifPosts')) {
+        enabledTypes.push('gif');
+      }
+      
+      console.log('📝 [FEATURE_FLAGS] Enabled post types', {
+        enabledTypes,
+        timestamp: new Date().toISOString()
+      });
+      
+      return enabledTypes;
+    } catch (error) {
+      console.error('❌ [FEATURE_FLAGS] Error getting enabled post types', {
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+      // Fallback to text only if there's an error
+      return ['text'];
     }
-    
-    if (this.isFeatureEnabled('enableGifPosts')) {
-      enabledTypes.push('gif');
-    }
-    
-    console.log('📝 [FEATURE_FLAGS] Enabled post types', {
-      enabledTypes,
-      timestamp: new Date().toISOString()
-    });
-    
-    return enabledTypes;
   }
 
   validatePostType(type: string): boolean {
-    const enabledTypes = this.getEnabledPostTypes();
-    const isValid = enabledTypes.includes(type);
-    
-    console.log('✅ [FEATURE_FLAGS] Post type validation', {
-      type,
-      isValid,
-      enabledTypes,
-      timestamp: new Date().toISOString()
-    });
-    
-    return isValid;
+    try {
+      const enabledTypes = this.getEnabledPostTypes();
+      const isValid = enabledTypes.includes(type);
+      
+      console.log('✅ [FEATURE_FLAGS] Post type validation', {
+        type,
+        isValid,
+        enabledTypes,
+        timestamp: new Date().toISOString()
+      });
+      
+      return isValid;
+    } catch (error) {
+      console.error('❌ [FEATURE_FLAGS] Error validating post type', {
+        type,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+      // Fallback: only allow text posts if there's an error
+      return type === 'text';
+    }
   }
 }

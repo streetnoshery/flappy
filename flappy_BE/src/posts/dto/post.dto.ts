@@ -1,8 +1,13 @@
-import { IsString, IsOptional } from 'class-validator';
-import { IsValidPostType } from 'src/common/validators/post-type.validator';
+import { IsString, IsOptional, IsIn, IsEmail } from 'class-validator';
 
 export class CreatePostDto {
-  @IsValidPostType({ message: 'Invalid post type or post type is disabled' })
+  @IsString()
+  userId: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsIn(['text', 'image', 'gif'], { message: 'Post type must be text, image, or gif' })
   type: string;
 
   @IsString()
@@ -14,6 +19,12 @@ export class CreatePostDto {
 }
 
 export class UpdatePostDto {
+  @IsString()
+  userId: string;
+
+  @IsEmail()
+  email: string;
+
   @IsOptional()
   @IsString()
   content?: string;

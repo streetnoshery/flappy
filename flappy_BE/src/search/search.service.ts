@@ -21,12 +21,25 @@ export class SearchService {
   }
 
   async searchPosts(query: string) {
-    return this.postModel.find({
+    const posts = await this.postModel.find({
       $or: [
         { content: { $regex: query, $options: 'i' } },
         { hashtags: { $in: [new RegExp(query, 'i')] } },
       ]
-    }).populate('userId', 'username profilePhotoUrl').limit(20);
+    }).limit(20).lean();
+
+    // Manually populate user data
+    const postsWithUsers = await Promise.all(
+      posts.map(async (post) => {
+        const user = await this.userModel.findOne({ userId: post.userId }, 'username profilePhotoUrl userId').lean();
+        return {
+          ...post,
+          userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null }
+        };
+      })
+    );
+
+    return postsWithUsers;
   }
 
   async getTrendingTags() {

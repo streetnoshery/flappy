@@ -6,11 +6,8 @@ import {
   Delete, 
   Param, 
   Body, 
-  UseGuards,
-  Request,
   BadRequestException
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PostsService } from './posts.service';
 import { CreatePostDto, UpdatePostDto } from './dto/post.dto';
 import { FeatureFlagsService } from '../common/services/feature-flags.service';
@@ -23,10 +20,10 @@ export class PostsController {
   ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  async createPost(@Body() createPostDto: CreatePostDto, @Request() req: any) {
+  async createPost(@Body() createPostDto: CreatePostDto) {
     console.log('📝 [POSTS] POST /posts - Creating new post', {
-      userId: req.user._id,
+      userId: createPostDto.userId,
+      userEmail: createPostDto.email,
       postType: createPostDto.type,
       contentLength: createPostDto.content?.length,
       hasMedia: !!createPostDto.mediaUrl,
@@ -39,16 +36,16 @@ export class PostsController {
       console.error('❌ [POSTS] POST /posts - Post type not enabled', {
         requestedType: createPostDto.type,
         enabledTypes,
-        userId: req.user._id
+        userId: createPostDto.userId
       });
       throw new BadRequestException(`Post type '${createPostDto.type}' is not enabled. Available types: ${enabledTypes.join(', ')}`);
     }
     
     try {
-      const post = await this.postsService.create(createPostDto, req.user._id);
+      const post = await this.postsService.create(createPostDto);
       console.log('✅ [POSTS] POST /posts - Post created successfully', {
         postId: post._id,
-        userId: req.user._id,
+        userId: createPostDto.userId,
         postType: post.type,
         hashtagsCount: post.hashtags?.length || 0
       });
@@ -56,7 +53,7 @@ export class PostsController {
     } catch (error) {
       console.error('❌ [POSTS] POST /posts - Failed to create post', {
         error: error.message,
-        userId: req.user._id,
+        userId: createPostDto.userId,
         postType: createPostDto.type
       });
       throw error;
@@ -88,20 +85,19 @@ export class PostsController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
-  async updatePost(@Param('id') id: string, @Body() updatePostDto: UpdatePostDto, @Request() req: any) {
+  async updatePost(@Param('id') id: string, @Body() updatePostDto: UpdatePostDto) {
     console.log('✏️ [POSTS] PUT /posts/:id - Updating post', {
       postId: id,
-      userId: req.user._id,
+      userId: updatePostDto.userId,
       updateFields: Object.keys(updatePostDto),
       timestamp: new Date().toISOString()
     });
     
     try {
-      const post = await this.postsService.update(id, updatePostDto, req.user._id);
+      const post = await this.postsService.update(id, updatePostDto);
       console.log('✅ [POSTS] PUT /posts/:id - Post updated successfully', {
         postId: id,
-        userId: req.user._id,
+        userId: updatePostDto.userId,
         updatedFields: Object.keys(updatePostDto)
       });
       return post;
@@ -109,33 +105,32 @@ export class PostsController {
       console.error('❌ [POSTS] PUT /posts/:id - Failed to update post', {
         error: error.message,
         postId: id,
-        userId: req.user._id
+        userId: updatePostDto.userId
       });
       throw error;
     }
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  async deletePost(@Param('id') id: string, @Request() req: any) {
+  async deletePost(@Param('id') id: string, @Body() body: { userId: string; email: string }) {
     console.log('🗑️ [POSTS] DELETE /posts/:id - Deleting post', {
       postId: id,
-      userId: req.user._id,
+      userId: body.userId,
       timestamp: new Date().toISOString()
     });
     
     try {
-      const result = await this.postsService.delete(id, req.user._id);
+      const result = await this.postsService.delete(id, body.userId);
       console.log('✅ [POSTS] DELETE /posts/:id - Post deleted successfully', {
         postId: id,
-        userId: req.user._id
+        userId: body.userId
       });
       return result;
     } catch (error) {
       console.error('❌ [POSTS] DELETE /posts/:id - Failed to delete post', {
         error: error.message,
         postId: id,
-        userId: req.user._id
+        userId: body.userId
       });
       throw error;
     }
