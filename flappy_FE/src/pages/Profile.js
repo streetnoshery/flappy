@@ -1,13 +1,14 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { usersAPI } from '../services/api';
+import { usersAPI, postsAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import PostCard from '../components/PostCard';
 
 const Profile = () => {
   const { userId } = useParams();
   
-  const { data: userData, isLoading, error } = useQuery(
+  const { data: userData, isLoading: userLoading, error: userError } = useQuery(
     ['user', userId],
     () => usersAPI.getUser(userId),
     {
@@ -15,10 +16,36 @@ const Profile = () => {
     }
   );
 
-  if (isLoading) return <LoadingSpinner />;
-  if (error) return <div className="text-center text-red-600">Error loading profile</div>;
+  // Extract the actual userId from user data
+  const actualUserId = userData?.data?.userId;
+
+  const { data: postsData, isLoading: postsLoading, error: postsError } = useQuery(
+    ['userPosts', actualUserId],
+    () => postsAPI.getPostsByUserId(actualUserId),
+    {
+      enabled: !!actualUserId, // Only fetch when we have the actual userId
+    }
+  );
+
+  if (userLoading) return <LoadingSpinner />;
+  if (userError) return <div className="text-center text-red-600">Error loading profile</div>;
 
   const user = userData?.data;
+  
+  // Safely extract posts with multiple fallbacks
+  let posts = [];
+  try {
+    if (postsData && postsData.data && Array.isArray(postsData.data)) {
+      posts = postsData.data;
+    } else if (postsData && Array.isArray(postsData)) {
+      posts = postsData;
+    } else {
+      posts = [];
+    }
+  } catch (error) {
+    console.error('Error processing posts data:', error);
+    posts = [];
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,15 +81,37 @@ const Profile = () => {
                 {user.website}
               </a>
             )}
+            
+            {/* Posts count */}
+            <div className="mt-3 text-sm text-gray-600">
+              <span className="font-medium">{posts.length}</span> {posts.length === 1 ? 'post' : 'posts'}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Posts</h2>
-        <div className="text-center text-gray-500 py-8">
-          No posts yet
-        </div>
+        
+        {postsLoading ? (
+          <div className="flex justify-center py-8">
+            <LoadingSpinner />
+          </div>
+        ) : postsError ? (
+          <div className="text-center text-red-600 py-8">
+            Error loading posts
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            No posts yet
+          </div>
+        ) : (
+          <div className="space-y-4 sm:space-y-6">
+            {posts.map((post) => (
+              <PostCard key={post._id} post={post} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -60,6 +60,50 @@ export class PostsController {
     }
   }
 
+  @Get('trending-tags')
+  async getTrendingTags() {
+    console.log('📈 [POSTS] GET /posts/trending-tags - Fetching trending tags', {
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const tags = await this.postsService.getTrendingTags();
+      console.log('✅ [POSTS] GET /posts/trending-tags - Trending tags retrieved', {
+        tagsCount: tags.length,
+        topTag: tags[0]?.tag
+      });
+      return tags;
+    } catch (error) {
+      console.error('❌ [POSTS] GET /posts/trending-tags - Failed to retrieve trending tags', {
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  @Get('user/:userId')
+  async getPostsByUserId(@Param('userId') userId: string) {
+    console.log('👤 [POSTS] GET /posts/user/:userId - Fetching posts by user', {
+      userId,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const posts = await this.postsService.findByUserId(userId);
+      console.log('✅ [POSTS] GET /posts/user/:userId - User posts retrieved', {
+        userId,
+        postsCount: posts.length
+      });
+      return { data: posts };
+    } catch (error) {
+      console.error('❌ [POSTS] GET /posts/user/:userId - Failed to retrieve user posts', {
+        error: error.message,
+        userId
+      });
+      throw error;
+    }
+  }
+
   @Get(':id')
   async getPost(@Param('id') id: string) {
     console.log('📖 [POSTS] GET /posts/:id - Fetching post', {
@@ -131,27 +175,6 @@ export class PostsController {
         error: error.message,
         postId: id,
         userId: body.userId
-      });
-      throw error;
-    }
-  }
-
-  @Get('trending-tags')
-  async getTrendingTags() {
-    console.log('📈 [POSTS] GET /posts/trending-tags - Fetching trending tags', {
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const tags = await this.postsService.getTrendingTags();
-      console.log('✅ [POSTS] GET /posts/trending-tags - Trending tags retrieved', {
-        tagsCount: tags.length,
-        topTag: tags[0]?.tag
-      });
-      return tags;
-    } catch (error) {
-      console.error('❌ [POSTS] GET /posts/trending-tags - Failed to retrieve trending tags', {
-        error: error.message
       });
       throw error;
     }

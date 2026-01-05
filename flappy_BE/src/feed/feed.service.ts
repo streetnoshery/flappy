@@ -38,7 +38,7 @@ export class FeedService {
     // Manually populate user data and reaction information
     const postsWithUsers = await Promise.all(
       posts.map(async (post) => {
-        const user = await this.userModel.findOne({ userId: post.userId }, 'username profilePhotoUrl userId').lean();
+        const user = await this.userModel.findOne({ userId: post.userId }, 'username profilePhotoUrl userId _id').lean();
         
         // Get reaction information
         const reactionCounts = await this.reactionModel.aggregate([
