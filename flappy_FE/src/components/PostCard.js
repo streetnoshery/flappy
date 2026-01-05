@@ -254,6 +254,7 @@ const PostCard = ({ post }) => {
         postId={post._id} 
         showComments={showComments}
         onToggleComments={() => setShowComments(!showComments)}
+        maxCommentsToShow={2}
       />
     </div>
   );

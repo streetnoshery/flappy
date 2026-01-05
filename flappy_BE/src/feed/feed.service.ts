@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Post, PostDocument } from '../posts/schemas/post.schema';
 import { User } from '../users/schemas/user.schema';
 import { Like } from '../interactions/schemas/like.schema';
+import { Comment } from '../interactions/schemas/comment.schema';
 import { Reaction } from '../reactions/schemas/reaction.schema';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class FeedService {
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Like.name) private likeModel: Model<Like>,
+    @InjectModel(Comment.name) private commentModel: Model<Comment>,
     @InjectModel(Reaction.name) private reactionModel: Model<Reaction>
   ) {}
 
@@ -59,11 +61,15 @@ export class FeedService {
           userReaction = userReactionDoc ? userReactionDoc.type : null;
         }
         
+        // Get comment count
+        const commentCount = await this.commentModel.countDocuments({ postId: post._id.toString() });
+        
         return {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
           reactions,
           userReaction,
+          commentCount,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
           isLiked: userReaction === 'love' // Heart is filled if user reacted with love
@@ -133,11 +139,15 @@ export class FeedService {
           userReaction = userReactionDoc ? userReactionDoc.type : null;
         }
         
+        // Get comment count
+        const commentCount = await this.commentModel.countDocuments({ postId: post._id.toString() });
+        
         return {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
           reactions,
           userReaction,
+          commentCount,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
           isLiked: userReaction === 'love' // Heart is filled if user reacted with love
@@ -207,11 +217,15 @@ export class FeedService {
           userReaction = userReactionDoc ? userReactionDoc.type : null;
         }
         
+        // Get comment count
+        const commentCount = await this.commentModel.countDocuments({ postId: post._id.toString() });
+        
         return {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
           reactions,
           userReaction,
+          commentCount,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
           isLiked: userReaction === 'love' // Heart is filled if user reacted with love

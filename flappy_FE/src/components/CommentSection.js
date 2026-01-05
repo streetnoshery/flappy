@@ -7,24 +7,37 @@ import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 import toast from 'react-hot-toast';
 
-const CommentSection = ({ postId, showComments = false, onToggleComments }) => {
+const CommentSection = ({ postId, showComments = false, onToggleComments, maxCommentsToShow = null }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const commentInputRef = React.useRef(null);
+
+  // Auto-focus comment input when comments are opened and refetch comments
+  React.useEffect(() => {
+    if (showComments && commentInputRef.current) {
+      setTimeout(() => {
+        commentInputRef.current?.focus();
+      }, 100);
+    }
+    
+    // Refetch comments when section is opened
+    if (showComments) {
+      queryClient.invalidateQueries(['comments', postId]);
+    }
+  }, [showComments, queryClient, postId]);
 
   const { data: commentsData, isLoading: commentsLoading, error: commentsError } = useQuery(
     ['comments', postId],
     () => interactionsAPI.getComments(postId),
     {
-      enabled: !!postId && showComments,
+      enabled: !!postId,
+      refetchOnWindowFocus: false,
       onError: (error) => {
         console.error('Error fetching comments:', error);
         toast.error('Failed to load comments');
-      },
-      onSuccess: (data) => {
-        console.log('Comments fetched successfully:', data);
       }
     }
   );
@@ -32,8 +45,11 @@ const CommentSection = ({ postId, showComments = false, onToggleComments }) => {
   const createCommentMutation = useMutation(
     (commentData) => interactionsAPI.commentOnPost(postId, commentData),
     {
-      onSuccess: () => {
+      onSuccess: (data) => {
+        // Invalidate and refetch
         queryClient.invalidateQueries(['comments', postId]);
+        queryClient.invalidateQueries('homeFeed');
+        queryClient.invalidateQueries('exploreFeed');
         setNewComment('');
         toast.success('Comment added!');
       },
@@ -61,8 +77,19 @@ const CommentSection = ({ postId, showComments = false, onToggleComments }) => {
   );
 
   const handleSubmitComment = (e) => {
-    e.preventDefault();
-    if (!newComment.trim() || !user) return;
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    
+    if (!newComment.trim()) {
+      toast.error('Please enter a comment');
+      return;
+    }
+    
+    if (!user) {
+      toast.error('Please log in to comment');
+      return;
+    }
 
     createCommentMutation.mutate({
       text: newComment.trim()
@@ -96,12 +123,6 @@ const CommentSection = ({ postId, showComments = false, onToggleComments }) => {
     comments = [];
   }
 
-  // Debug logging to understand the data structure
-  console.log('CommentSection - commentsData:', commentsData);
-  console.log('CommentSection - comments:', comments);
-  console.log('CommentSection - comments type:', typeof comments);
-  console.log('CommentSection - is array:', Array.isArray(comments));
-
   return (
     <div className="border-t border-gray-200">
       {/* Comment Toggle Button */}
@@ -119,14 +140,16 @@ const CommentSection = ({ postId, showComments = false, onToggleComments }) => {
           </span>
         </button>
         
-        {Array.isArray(comments) && comments.length > 2 && (
-          <Link
-            to={`/post/${postId}`}
-            className="text-xs text-gray-500 hover:text-gray-700"
-          >
-            View all comments
-          </Link>
-        )}
+        <div className="flex items-center space-x-2">
+          {Array.isArray(comments) && comments.length > 2 && (
+            <Link
+              to={`/post/${postId}`}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              View all {comments.length} comments
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Comments Section */}
@@ -134,7 +157,7 @@ const CommentSection = ({ postId, showComments = false, onToggleComments }) => {
         <div className="px-3 sm:px-4 pb-3 sm:pb-4">
           {/* Add Comment Form */}
           {user && (
-            <form onSubmit={handleSubmitComment} className="mb-4">
+            <div className="mb-4">
               <div className="flex space-x-2 sm:space-x-3">
                 <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
                   {user.profilePhotoUrl ? (
@@ -152,24 +175,44 @@ const CommentSection = ({ postId, showComments = false, onToggleComments }) => {
                 <div className="flex-1">
                   <div className="flex space-x-2">
                     <input
+                      ref={commentInputRef}
                       type="text"
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="Write a comment..."
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                       disabled={createCommentMutation.isLoading}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSubmitComment(e);
+                        }
+                      }}
                     />
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={() => {
+                        if (!newComment.trim()) {
+                          toast.error('Please enter a comment');
+                          return;
+                        }
+                        
+                        if (!user) {
+                          toast.error('Please log in');
+                          return;
+                        }
+                        
+                        createCommentMutation.mutate({ text: newComment.trim() });
+                      }}
                       disabled={!newComment.trim() || createCommentMutation.isLoading}
-                      className="px-3 py-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <Send className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               </div>
-            </form>
+            </div>
           )}
 
           {/* Comments List */}
@@ -191,7 +234,9 @@ const CommentSection = ({ postId, showComments = false, onToggleComments }) => {
             </p>
           ) : (
             <div className="space-y-3 sm:space-y-4">
-              {comments.map((comment) => {
+              {comments
+                .slice(0, maxCommentsToShow || comments.length)
+                .map((comment) => {
                 // Safety check for each comment
                 if (!comment || !comment._id) {
                   console.warn('Invalid comment object:', comment);
@@ -316,6 +361,18 @@ const CommentSection = ({ postId, showComments = false, onToggleComments }) => {
                 </div>
                 );
               }).filter(Boolean)}
+              
+              {/* Show more comments link */}
+              {maxCommentsToShow && comments.length > maxCommentsToShow && (
+                <div className="pt-2">
+                  <Link
+                    to={`/post/${postId}`}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    View {comments.length - maxCommentsToShow} more {comments.length - maxCommentsToShow === 1 ? 'comment' : 'comments'}
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 

@@ -5,6 +5,7 @@ import { FeedService } from './feed.service';
 import { Post, PostSchema } from '../posts/schemas/post.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Like, LikeSchema } from '../interactions/schemas/like.schema';
+import { Comment, CommentSchema } from '../interactions/schemas/comment.schema';
 import { Reaction, ReactionSchema } from '../reactions/schemas/reaction.schema';
 
 @Module({
@@ -13,6 +14,7 @@ import { Reaction, ReactionSchema } from '../reactions/schemas/reaction.schema';
       { name: Post.name, schema: PostSchema },
       { name: User.name, schema: UserSchema },
       { name: Like.name, schema: LikeSchema },
+      { name: Comment.name, schema: CommentSchema },
       { name: Reaction.name, schema: ReactionSchema }
     ]),
   ],

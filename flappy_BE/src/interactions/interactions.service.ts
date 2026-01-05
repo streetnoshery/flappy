@@ -55,16 +55,44 @@ export class InteractionsService {
   }
 
   async commentOnPost(postId: string, createCommentDto: CreateCommentDto, userId: string) {
+    console.log('💬 [INTERACTIONS_SERVICE] Creating comment', {
+      postId,
+      userId,
+      text: createCommentDto.text
+    });
+    
     const comment = new this.commentModel({
       postId,
       userId,
       text: createCommentDto.text,
     });
     
-    return comment.save();
+    const savedComment = await comment.save();
+    
+    // Populate user data for the response
+    const user = await this.userModel.findOne({ userId }, 'username profilePhotoUrl userId').lean();
+    
+    const commentWithUser = {
+      ...savedComment.toObject(),
+      userId: user || { userId, username: 'Unknown User', profilePhotoUrl: null }
+    };
+    
+    console.log('✅ [INTERACTIONS_SERVICE] Comment created with user data', {
+      commentId: savedComment._id,
+      userId,
+      hasUserData: !!user
+    });
+    
+    return commentWithUser;
   }
 
   async replyToComment(commentId: string, createReplyDto: CreateReplyDto, userId: string) {
+    console.log('↩️ [INTERACTIONS_SERVICE] Creating reply', {
+      commentId,
+      userId,
+      text: createReplyDto.text
+    });
+    
     const comment = await this.commentModel.findByIdAndUpdate(
       commentId,
       {
@@ -77,9 +105,38 @@ export class InteractionsService {
         }
       },
       { new: true }
-    );
+    ).lean();
     
-    return comment;
+    if (!comment) {
+      throw new Error('Comment not found');
+    }
+    
+    // Populate user data for the comment and all replies
+    const user = await this.userModel.findOne({ userId: comment.userId }, 'username profilePhotoUrl userId').lean();
+    
+    const repliesWithUsers = await Promise.all(
+      (comment.replies || []).map(async (reply) => {
+        const replyUser = await this.userModel.findOne({ userId: reply.userId }, 'username profilePhotoUrl userId').lean();
+        return {
+          ...reply,
+          userId: replyUser || { userId: reply.userId, username: 'Unknown User', profilePhotoUrl: null }
+        };
+      })
+    );
+
+    const commentWithUsers = {
+      ...comment,
+      userId: user || { userId: comment.userId, username: 'Unknown User', profilePhotoUrl: null },
+      replies: repliesWithUsers
+    };
+    
+    console.log('✅ [INTERACTIONS_SERVICE] Reply created with user data', {
+      commentId,
+      userId,
+      repliesCount: repliesWithUsers.length
+    });
+    
+    return commentWithUsers;
   }
 
   async pinPost(postId: string, userId: string) {
