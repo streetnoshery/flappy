@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Heart, Share, Bookmark, MoreHorizontal } from 'lucide-react';
 import { interactionsAPI, reactionsAPI } from '../services/api';
 import { useMutation, useQueryClient } from 'react-query';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import CommentSection from './CommentSection';
 import toast from 'react-hot-toast';
 
 const PostCard = ({ post }) => {
   const [showReactions, setShowReactions] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [userReaction, setUserReaction] = useState(null);
@@ -117,19 +119,19 @@ const PostCard = ({ post }) => {
   });
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mx-2 sm:mx-0">
       {/* Post Header */}
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+      <div className="flex items-center justify-between p-3 sm:p-4">
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-300 rounded-full flex items-center justify-center">
             {post.userId?.profilePhotoUrl ? (
               <img
                 src={post.userId.profilePhotoUrl}
                 alt={post.userId.username}
-                className="w-10 h-10 rounded-full object-cover"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
               />
             ) : (
-              <span className="text-gray-600 font-medium">
+              <span className="text-gray-600 font-medium text-sm sm:text-base">
                 {post.userId?.username?.[0]?.toUpperCase()}
               </span>
             )}
@@ -137,23 +139,23 @@ const PostCard = ({ post }) => {
           <div>
             <Link
               to={`/profile/${post.userId?._id}`}
-              className="font-medium text-gray-900 hover:underline"
+              className="font-medium text-gray-900 hover:underline text-sm sm:text-base"
             >
               {post.userId?.username}
             </Link>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500">
               {new Date(post.createdAt).toLocaleDateString()}
             </p>
           </div>
         </div>
-        <button className="p-2 hover:bg-gray-100 rounded-full">
-          <MoreHorizontal className="w-5 h-5 text-gray-500" />
+        <button className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full">
+          <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
         </button>
       </div>
 
       {/* Post Content */}
-      <div className="px-4 pb-4">
-        <p className="text-gray-900 mb-3">{post.content}</p>
+      <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+        <p className="text-gray-900 mb-3 text-sm sm:text-base leading-relaxed">{post.content}</p>
         
         {post.mediaUrl && (
           <div className="mb-3">
@@ -161,18 +163,18 @@ const PostCard = ({ post }) => {
               <img
                 src={post.mediaUrl}
                 alt="Post media"
-                className="w-full rounded-lg max-h-96 object-cover"
+                className="w-full rounded-lg max-h-64 sm:max-h-96 object-cover"
               />
             ) : null}
           </div>
         )}
 
         {post.hashtags && post.hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
+          <div className="flex flex-wrap gap-1 sm:gap-2 mb-3">
             {post.hashtags.map((tag, index) => (
               <span
                 key={index}
-                className="text-primary-600 hover:underline cursor-pointer"
+                className="text-primary-600 hover:underline cursor-pointer text-xs sm:text-sm"
               >
                 #{tag}
               </span>
@@ -182,9 +184,9 @@ const PostCard = ({ post }) => {
       </div>
 
       {/* Post Actions */}
-      <div className="border-t border-gray-200 px-4 py-3">
+      <div className="border-t border-gray-200 px-3 sm:px-4 py-2.5 sm:py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
             <div className="relative flex items-center">
               <button
                 onClick={() => {
@@ -192,16 +194,16 @@ const PostCard = ({ post }) => {
                   likeMutation.mutate();
                 }}
                 disabled={likeMutation.isLoading}
-                className={`flex items-center space-x-2 transition-colors ${
+                className={`flex items-center space-x-1.5 sm:space-x-2 transition-colors ${
                   isLiked 
                     ? 'text-red-600' 
                     : 'text-gray-600 hover:text-red-600'
                 }`}
               >
                 <Heart 
-                  className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} 
+                  className={`w-4 h-4 sm:w-5 sm:h-5 ${isLiked ? 'fill-current' : ''}`} 
                 />
-                <span className="text-sm">
+                <span className="text-xs sm:text-sm">
                   {likeCount > 0 ? likeCount : 'Like'}
                 </span>
               </button>
@@ -216,12 +218,12 @@ const PostCard = ({ post }) => {
               )}
               
               {isFeatureEnabled('enableReactions') && showReactions && (
-                <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg p-2 flex space-x-2">
+                <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg p-2 flex space-x-2 z-10">
                   {reactions.map((reaction) => (
                     <button
                       key={reaction}
                       onClick={() => reactionMutation.mutate(reaction)}
-                      className={`text-2xl hover:scale-110 transition-transform ${
+                      className={`text-lg sm:text-2xl hover:scale-110 transition-transform ${
                         userReaction === reaction ? 'scale-110 ring-2 ring-blue-300 rounded-full' : ''
                       }`}
                     >
@@ -232,17 +234,9 @@ const PostCard = ({ post }) => {
               )}
             </div>
             
-            <Link
-              to={`/post/${post._id}`}
-              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              <MessageCircle className="w-5 h-5" />
-              <span className="text-sm">Comment</span>
-            </Link>
-            
-            <button className="flex items-center space-x-2 text-gray-600 hover:text-green-600 transition-colors">
-              <Share className="w-5 h-5" />
-              <span className="text-sm">Share</span>
+            <button className="flex items-center space-x-1.5 sm:space-x-2 text-gray-600 hover:text-green-600 transition-colors">
+              <Share className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-xs sm:text-sm hidden sm:inline">Share</span>
             </button>
           </div>
           
@@ -250,10 +244,17 @@ const PostCard = ({ post }) => {
             onClick={() => saveMutation.mutate()}
             className="text-gray-600 hover:text-yellow-600 transition-colors"
           >
-            <Bookmark className="w-5 h-5" />
+            <Bookmark className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </div>
+
+      {/* Comment Section */}
+      <CommentSection 
+        postId={post._id} 
+        showComments={showComments}
+        onToggleComments={() => setShowComments(!showComments)}
+      />
     </div>
   );
 };

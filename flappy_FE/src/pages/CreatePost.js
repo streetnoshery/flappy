@@ -142,26 +142,26 @@ const CreatePost = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Create New Post</h1>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Create New Post</h1>
 
         {availablePostTypes.length === 0 && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-md">
             <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-              <p className="text-yellow-800">No post types are currently available. Please contact support.</p>
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600 mr-2" />
+              <p className="text-sm sm:text-base text-yellow-800">No post types are currently available. Please contact support.</p>
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
           {/* Post Type Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
               Post Type
             </label>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-2 sm:gap-4">
               {availablePostTypes.map((type) => {
                 const Icon = type.icon;
                 return (
@@ -170,13 +170,13 @@ const CreatePost = () => {
                     type="button"
                     onClick={() => setPostType(type.id)}
                     disabled={createPostMutation.isLoading}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 ${
+                    className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 text-sm sm:text-base ${
                       postType === type.id
                         ? 'border-primary-500 bg-primary-50 text-primary-700'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span>{type.label}</span>
                   </button>
                 );
@@ -198,9 +198,9 @@ const CreatePost = () => {
                       return (
                         <span
                           key={type.id}
-                          className="inline-flex items-center space-x-1 px-2 py-1 bg-gray-200 text-gray-500 rounded text-sm"
+                          className="inline-flex items-center space-x-1 px-2 py-1 bg-gray-200 text-gray-500 rounded text-xs sm:text-sm"
                         >
-                          <Icon className="w-4 h-4" />
+                          <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                           <span>{type.label}</span>
                         </span>
                       );
@@ -217,15 +217,15 @@ const CreatePost = () => {
             </label>
             <textarea
               {...register('content', { required: 'Content is required' })}
-              rows={6}
+              rows={4}
               disabled={createPostMutation.isLoading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none disabled:opacity-50"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none disabled:opacity-50 text-sm sm:text-base"
               placeholder="What's on your mind?"
             />
             {errors.content && (
               <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>
             )}
-            <div className="mt-2 text-sm text-gray-500">
+            <div className="mt-2 text-xs sm:text-sm text-gray-500">
               {content.length}/500 characters
             </div>
           </div>
@@ -242,7 +242,7 @@ const CreatePost = () => {
                 })}
                 type="url"
                 disabled={createPostMutation.isLoading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 text-sm sm:text-base"
                 placeholder="Enter image or GIF URL"
               />
               {errors.mediaUrl && (
@@ -252,7 +252,7 @@ const CreatePost = () => {
           )}
 
           {/* Actions */}
-          <div className="flex justify-end space-x-4">
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-4">
             {/* Debug button for testing auth */}
             <button
               type="button"
@@ -280,7 +280,7 @@ const CreatePost = () => {
                 }
               }}
               disabled={createPostMutation.isLoading}
-              className="px-4 py-2 text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors disabled:opacity-50"
+              className="w-full sm:w-auto px-4 py-2 text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors disabled:opacity-50 text-sm"
             >
               Test Auth
             </button>
@@ -288,14 +288,14 @@ const CreatePost = () => {
               type="button"
               onClick={() => navigate('/')}
               disabled={createPostMutation.isLoading}
-              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
+              className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50 text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={createPostMutation.isLoading || availablePostTypes.length === 0}
-              className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+              className="w-full sm:w-auto px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 transition-colors text-sm"
             >
               {createPostMutation.isLoading ? 'Creating...' : 'Create Post'}
             </button>

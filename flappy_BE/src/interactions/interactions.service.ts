@@ -93,35 +93,61 @@ export class InteractionsService {
   }
 
   async getComments(postId: string) {
-    const comments = await this.commentModel
-      .find({ postId })
-      .sort({ createdAt: -1 })
-      .lean();
+    console.log('🔍 [INTERACTIONS_SERVICE] Getting comments for post:', postId);
+    
+    try {
+      const comments = await this.commentModel
+        .find({ postId })
+        .sort({ createdAt: -1 })
+        .lean();
 
-    // Manually populate user data for comments and replies
-    const commentsWithUsers = await Promise.all(
-      comments.map(async (comment) => {
-        const user = await this.userModel.findOne({ userId: comment.userId }, 'username profilePhotoUrl userId').lean();
-        
-        // Populate replies with user data
-        const repliesWithUsers = await Promise.all(
-          (comment.replies || []).map(async (reply) => {
-            const replyUser = await this.userModel.findOne({ userId: reply.userId }, 'username profilePhotoUrl userId').lean();
-            return {
-              ...reply,
-              userId: replyUser || { userId: reply.userId, username: 'Unknown User', profilePhotoUrl: null }
-            };
-          })
-        );
+      console.log('📊 [INTERACTIONS_SERVICE] Found comments:', {
+        postId,
+        commentsCount: comments.length,
+        commentsType: typeof comments,
+        isArray: Array.isArray(comments)
+      });
 
-        return {
-          ...comment,
-          userId: user || { userId: comment.userId, username: 'Unknown User', profilePhotoUrl: null },
-          replies: repliesWithUsers
-        };
-      })
-    );
+      // Manually populate user data for comments and replies
+      const commentsWithUsers = await Promise.all(
+        comments.map(async (comment) => {
+          const user = await this.userModel.findOne({ userId: comment.userId }, 'username profilePhotoUrl userId').lean();
+          
+          // Populate replies with user data
+          const repliesWithUsers = await Promise.all(
+            (comment.replies || []).map(async (reply) => {
+              const replyUser = await this.userModel.findOne({ userId: reply.userId }, 'username profilePhotoUrl userId').lean();
+              return {
+                ...reply,
+                userId: replyUser || { userId: reply.userId, username: 'Unknown User', profilePhotoUrl: null }
+              };
+            })
+          );
 
-    return commentsWithUsers;
+          return {
+            ...comment,
+            userId: user || { userId: comment.userId, username: 'Unknown User', profilePhotoUrl: null },
+            replies: repliesWithUsers
+          };
+        })
+      );
+
+      console.log('✅ [INTERACTIONS_SERVICE] Comments with users populated:', {
+        postId,
+        finalCommentsCount: commentsWithUsers.length,
+        finalCommentsType: typeof commentsWithUsers,
+        finalIsArray: Array.isArray(commentsWithUsers)
+      });
+
+      return commentsWithUsers;
+    } catch (error) {
+      console.error('❌ [INTERACTIONS_SERVICE] Error getting comments:', {
+        postId,
+        error: error.message,
+        stack: error.stack
+      });
+      // Return empty array on error to prevent frontend crashes
+      return [];
+    }
   }
 }

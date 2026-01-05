@@ -83,7 +83,7 @@ export class InteractionsController {
         userId: createCommentDto.userId,
         commentId: comment._id
       });
-      return comment;
+      return { data: comment };
     } catch (error) {
       console.error('❌ [INTERACTIONS] POST /posts/:id/comment - Failed to add comment', {
         error: error.message,
@@ -116,7 +116,7 @@ export class InteractionsController {
         commentId: commentId,
         userId: createReplyDto.userId
       });
-      return comment;
+      return { data: comment };
     } catch (error) {
       console.error('❌ [INTERACTIONS] POST /posts/:id/comment/:commentId/reply - Failed to add reply', {
         error: error.message,
@@ -193,7 +193,7 @@ export class InteractionsController {
         postId: postId,
         commentsCount: comments.length
       });
-      return comments;
+      return { data: comments };
     } catch (error) {
       console.error('❌ [INTERACTIONS] GET /posts/:id/comments - Failed to retrieve comments', {
         error: error.message,

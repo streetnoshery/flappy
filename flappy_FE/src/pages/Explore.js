@@ -19,16 +19,16 @@ const Explore = () => {
   const posts = exploreData?.data?.posts || [];
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Explore</h1>
-        <p className="text-gray-600">Discover trending posts and new content.</p>
+    <div className="px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-4">Explore</h1>
+        <p className="text-gray-600 text-sm sm:text-base">Discover trending posts and new content.</p>
       </div>
 
       <div className="space-y-4">
         {posts.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <p className="text-gray-500">No posts to explore yet.</p>
+          <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8 text-center">
+            <p className="text-gray-500 text-sm sm:text-base">No posts to explore yet.</p>
           </div>
         ) : (
           posts.map((post) => (
