@@ -55,12 +55,6 @@ export class InteractionsService {
   }
 
   async commentOnPost(postId: string, createCommentDto: CreateCommentDto, userId: string) {
-    console.log('💬 [INTERACTIONS_SERVICE] Creating comment', {
-      postId,
-      userId,
-      text: createCommentDto.text
-    });
-    
     const comment = new this.commentModel({
       postId,
       userId,
@@ -77,22 +71,10 @@ export class InteractionsService {
       userId: user || { userId, username: 'Unknown User', profilePhotoUrl: null }
     };
     
-    console.log('✅ [INTERACTIONS_SERVICE] Comment created with user data', {
-      commentId: savedComment._id,
-      userId,
-      hasUserData: !!user
-    });
-    
     return commentWithUser;
   }
 
   async replyToComment(commentId: string, createReplyDto: CreateReplyDto, userId: string) {
-    console.log('↩️ [INTERACTIONS_SERVICE] Creating reply', {
-      commentId,
-      userId,
-      text: createReplyDto.text
-    });
-    
     const comment = await this.commentModel.findByIdAndUpdate(
       commentId,
       {
@@ -130,12 +112,6 @@ export class InteractionsService {
       replies: repliesWithUsers
     };
     
-    console.log('✅ [INTERACTIONS_SERVICE] Reply created with user data', {
-      commentId,
-      userId,
-      repliesCount: repliesWithUsers.length
-    });
-    
     return commentWithUsers;
   }
 
@@ -150,20 +126,11 @@ export class InteractionsService {
   }
 
   async getComments(postId: string) {
-    console.log('🔍 [INTERACTIONS_SERVICE] Getting comments for post:', postId);
-    
     try {
       const comments = await this.commentModel
         .find({ postId })
         .sort({ createdAt: -1 })
         .lean();
-
-      console.log('📊 [INTERACTIONS_SERVICE] Found comments:', {
-        postId,
-        commentsCount: comments.length,
-        commentsType: typeof comments,
-        isArray: Array.isArray(comments)
-      });
 
       // Manually populate user data for comments and replies
       const commentsWithUsers = await Promise.all(
@@ -189,20 +156,9 @@ export class InteractionsService {
         })
       );
 
-      console.log('✅ [INTERACTIONS_SERVICE] Comments with users populated:', {
-        postId,
-        finalCommentsCount: commentsWithUsers.length,
-        finalCommentsType: typeof commentsWithUsers,
-        finalIsArray: Array.isArray(commentsWithUsers)
-      });
-
       return commentsWithUsers;
     } catch (error) {
-      console.error('❌ [INTERACTIONS_SERVICE] Error getting comments:', {
-        postId,
-        error: error.message,
-        stack: error.stack
-      });
+      console.error('Error getting comments:', error.message);
       // Return empty array on error to prevent frontend crashes
       return [];
     }

@@ -15,25 +15,11 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
   const [replyText, setReplyText] = useState('');
   const commentInputRef = React.useRef(null);
 
-  // Auto-focus comment input when comments are opened and refetch comments
-  React.useEffect(() => {
-    if (showComments && commentInputRef.current) {
-      setTimeout(() => {
-        commentInputRef.current?.focus();
-      }, 100);
-    }
-    
-    // Refetch comments when section is opened
-    if (showComments) {
-      queryClient.invalidateQueries(['comments', postId]);
-    }
-  }, [showComments, queryClient, postId]);
-
   const { data: commentsData, isLoading: commentsLoading, error: commentsError } = useQuery(
     ['comments', postId],
     () => interactionsAPI.getComments(postId),
     {
-      enabled: !!postId,
+      enabled: !!postId && showComments,
       refetchOnWindowFocus: false,
       onError: (error) => {
         console.error('Error fetching comments:', error);
@@ -109,19 +95,34 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
   // Safely extract comments with multiple fallbacks
   let comments = [];
   try {
-    if (commentsData && commentsData.data && Array.isArray(commentsData.data)) {
+    // Check for axios response structure first (response.data.data)
+    if (commentsData && commentsData.data && commentsData.data.data && Array.isArray(commentsData.data.data)) {
+      comments = commentsData.data.data;
+    } else if (commentsData && commentsData.data && Array.isArray(commentsData.data)) {
       comments = commentsData.data;
     } else if (commentsData && Array.isArray(commentsData)) {
-      // Fallback in case the API returns comments directly without wrapping in data
       comments = commentsData;
-    } else if (commentsData) {
-      console.warn('Unexpected comments data structure:', commentsData);
+    } else {
       comments = [];
     }
   } catch (error) {
     console.error('Error processing comments data:', error);
     comments = [];
   }
+
+  // Auto-focus comment input when comments are opened and refetch comments
+  React.useEffect(() => {
+    if (showComments && commentInputRef.current) {
+      setTimeout(() => {
+        commentInputRef.current?.focus();
+      }, 100);
+    }
+    
+    // Refetch comments when section is opened
+    if (showComments) {
+      queryClient.invalidateQueries(['comments', postId]);
+    }
+  }, [showComments, queryClient, postId]);
 
   return (
     <div className="border-t border-gray-200">
@@ -182,7 +183,7 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
                       placeholder="Write a comment..."
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                       disabled={createCommentMutation.isLoading}
-                      onKeyPress={(e) => {
+                      onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           handleSubmitComment(e);
@@ -239,7 +240,6 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
                 .map((comment) => {
                 // Safety check for each comment
                 if (!comment || !comment._id) {
-                  console.warn('Invalid comment object:', comment);
                   return null;
                 }
                 
@@ -319,7 +319,6 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
                           {comment.replies.map((reply, index) => {
                             // Safety check for each reply
                             if (!reply) {
-                              console.warn('Invalid reply object:', reply);
                               return null;
                             }
                             
