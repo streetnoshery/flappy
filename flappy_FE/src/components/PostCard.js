@@ -24,13 +24,6 @@ const PostCard = ({ post }) => {
 
   // Initialize state from post data
   useEffect(() => {
-    console.log('PostCard useEffect - initializing state:', {
-      postId: post._id,
-      postIsLiked: post.isLiked,
-      postLikeCount: post.likeCount,
-      postUserReaction: post.userReaction
-    });
-    
     setIsLiked(post.isLiked || false);
     setLikeCount(post.likeCount || 0);
     setUserReaction(post.userReaction || null);
@@ -40,23 +33,13 @@ const PostCard = ({ post }) => {
     () => interactionsAPI.likePost(post._id),
     {
       onSuccess: (response) => {
-        console.log('Full API Response:', response);
         const data = response.data;
-        console.log('Extracted data:', data);
         
         if (data && typeof data === 'object') {
           const newIsLiked = data.isReacted === true && data.reactionType === 'love';
           const newUserReaction = data.isReacted ? data.reactionType : null;
           const newLikeCount = data.reactionCounts ? 
             Object.values(data.reactionCounts).reduce((sum, count) => sum + count, 0) : 0;
-          
-          console.log('Updating states:', {
-            newIsLiked,
-            newUserReaction,
-            newLikeCount,
-            dataIsReacted: data.isReacted,
-            dataReactionType: data.reactionType
-          });
           
           setIsLiked(newIsLiked);
           setUserReaction(newUserReaction);
@@ -136,13 +119,6 @@ const PostCard = ({ post }) => {
     angry: '😡'
   };
 
-  console.log('PostCard render - current state:', {
-    isLiked,
-    likeCount,
-    userReaction,
-    postId: post._id
-  });
-
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 mx-2 sm:mx-0">
       {/* Post Header */}
@@ -214,10 +190,7 @@ const PostCard = ({ post }) => {
           <div className="flex items-center space-x-3 sm:space-x-4">
             <div className="relative flex items-center">
               <button
-                onClick={() => {
-                  console.log('Heart clicked - before mutation:', { isLiked, userReaction });
-                  likeMutation.mutate();
-                }}
+                onClick={() => likeMutation.mutate()}
                 disabled={likeMutation.isLoading}
                 className={`flex items-center space-x-1.5 sm:space-x-2 transition-colors ${
                   isLiked 

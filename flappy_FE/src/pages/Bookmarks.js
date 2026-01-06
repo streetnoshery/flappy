@@ -20,10 +20,15 @@ const Bookmarks = () => {
   // Safely extract bookmarks
   let bookmarks = [];
   try {
-    if (bookmarksData && bookmarksData.data && Array.isArray(bookmarksData.data)) {
+    // Check for double-nested axios response structure first (response.data.data.data)
+    if (bookmarksData && bookmarksData.data && bookmarksData.data.data && Array.isArray(bookmarksData.data.data)) {
+      bookmarks = bookmarksData.data.data;
+    } else if (bookmarksData && bookmarksData.data && Array.isArray(bookmarksData.data)) {
       bookmarks = bookmarksData.data;
     } else if (bookmarksData && Array.isArray(bookmarksData)) {
       bookmarks = bookmarksData;
+    } else {
+      bookmarks = [];
     }
   } catch (error) {
     console.error('Error processing bookmarks data:', error);

@@ -6,6 +6,7 @@ import { Like } from './schemas/like.schema';
 import { Bookmark } from './schemas/bookmark.schema';
 import { Post } from '../posts/schemas/post.schema';
 import { User } from '../users/schemas/user.schema';
+import { Reaction } from '../reactions/schemas/reaction.schema';
 import { CreateCommentDto, CreateReplyDto } from './dto/interaction.dto';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class InteractionsService {
     @InjectModel(Bookmark.name) private bookmarkModel: Model<Bookmark>,
     @InjectModel(Post.name) private postModel: Model<Post>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Reaction.name) private reactionModel: Model<Reaction>,
   ) {}
 
   async likePost(postId: string, userId: string) {
@@ -166,7 +168,7 @@ export class InteractionsService {
         .sort({ createdAt: -1 })
         .lean();
 
-      // Get the actual posts with full data
+      // Get the actual posts with full data including reactions and comments
       const bookmarkedPosts = await Promise.all(
         bookmarks.map(async (bookmark) => {
           const post = await this.postModel.findById(bookmark.postId).lean();
@@ -175,9 +177,37 @@ export class InteractionsService {
           // Populate user data for the post author
           const user = await this.userModel.findOne({ userId: post.userId }, 'username profilePhotoUrl userId _id').lean();
           
+          // Get reaction information (same as in posts service)
+          const reactionCounts = await this.reactionModel.aggregate([
+            { $match: { postId: post._id.toString() } },
+            { $group: { _id: '$type', count: { $sum: 1 } } },
+          ]);
+          
+          const reactions = reactionCounts.reduce((acc, reaction) => {
+            acc[reaction._id] = reaction.count;
+            return acc;
+          }, {});
+          
+          // Get current user's reaction
+          let userReaction = null;
+          const userReactionDoc = await this.reactionModel.findOne({ 
+            postId: post._id.toString(), 
+            userId 
+          }).lean();
+          userReaction = userReactionDoc ? userReactionDoc.type : null;
+          
+          // Get comment count
+          const commentCount = await this.commentModel.countDocuments({ postId: post._id.toString() });
+          
           return {
             ...post,
             userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
+            reactions,
+            userReaction,
+            commentCount,
+            // Keep like count for backward compatibility (sum of all reactions)
+            likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
+            isLiked: userReaction === 'love', // Heart is filled if user reacted with love
             bookmarkedAt: (bookmark as any).createdAt || new Date()
           };
         })

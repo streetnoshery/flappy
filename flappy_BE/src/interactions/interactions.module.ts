@@ -7,6 +7,7 @@ import { Like, LikeSchema } from './schemas/like.schema';
 import { Bookmark, BookmarkSchema } from './schemas/bookmark.schema';
 import { Post, PostSchema } from '../posts/schemas/post.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { Reaction, ReactionSchema } from '../reactions/schemas/reaction.schema';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
       { name: Bookmark.name, schema: BookmarkSchema },
       { name: Post.name, schema: PostSchema },
       { name: User.name, schema: UserSchema },
+      { name: Reaction.name, schema: ReactionSchema },
     ]),
   ],
   controllers: [InteractionsController],

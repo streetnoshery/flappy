@@ -115,15 +115,6 @@ export const feedAPI = {
 export const interactionsAPI = {
   likePost: (postId) => {
     const user = getUserData();
-    console.log('Making like API call:', {
-      postId,
-      user: user,
-      payload: { 
-        type: 'love',
-        userId: user?.userId, 
-        email: user?.email 
-      }
-    });
     // Use reactions API with "love" type for heart button
     return api.post(`/posts/${postId}/react`, { 
       type: 'love',
