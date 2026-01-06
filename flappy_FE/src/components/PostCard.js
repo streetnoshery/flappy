@@ -27,6 +27,7 @@ const PostCard = ({ post }) => {
     setIsLiked(post.isLiked || false);
     setLikeCount(post.likeCount || 0);
     setUserReaction(post.userReaction || null);
+    setIsBookmarked(post.isBookmarked || false);
   }, [post]);
 
   const likeMutation = useMutation(
@@ -59,25 +60,14 @@ const PostCard = ({ post }) => {
     }
   );
 
-  // Get bookmark status for posts that aren't user's own
-  const { data: bookmarkStatus } = useQuery(
-    ['bookmarkStatus', post._id],
-    () => interactionsAPI.getBookmarkStatus(post._id),
-    {
-      enabled: !isOwnPost && !!user?.userId,
-      onSuccess: (data) => {
-        setIsBookmarked(data.isBookmarked || false);
-      }
-    }
-  );
-
   const saveMutation = useMutation(
     () => interactionsAPI.savePost(post._id),
     {
       onSuccess: (response) => {
         const data = response.data;
         setIsBookmarked(data.isBookmarked);
-        queryClient.invalidateQueries(['bookmarkStatus', post._id]);
+        queryClient.invalidateQueries('homeFeed');
+        queryClient.invalidateQueries('exploreFeed');
         queryClient.invalidateQueries(['userBookmarks', user?.userId]);
         toast.success(data.message);
       },

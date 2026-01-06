@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Comment } from './schemas/comment.schema';
@@ -128,11 +128,11 @@ export class InteractionsService {
     // Check if user is trying to bookmark their own post
     const post = await this.postModel.findById(postId);
     if (!post) {
-      throw new Error('Post not found');
+      throw new NotFoundException('Post not found');
     }
     
     if (post.userId === userId) {
-      throw new Error('You cannot bookmark your own posts');
+      throw new BadRequestException('You cannot bookmark your own posts');
     }
     
     // Check if already bookmarked

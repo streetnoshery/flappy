@@ -6,6 +6,7 @@ import { Post, PostSchema } from '../posts/schemas/post.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Like, LikeSchema } from '../interactions/schemas/like.schema';
 import { Comment, CommentSchema } from '../interactions/schemas/comment.schema';
+import { Bookmark, BookmarkSchema } from '../interactions/schemas/bookmark.schema';
 import { Reaction, ReactionSchema } from '../reactions/schemas/reaction.schema';
 
 @Module({
@@ -15,6 +16,7 @@ import { Reaction, ReactionSchema } from '../reactions/schemas/reaction.schema';
       { name: User.name, schema: UserSchema },
       { name: Like.name, schema: LikeSchema },
       { name: Comment.name, schema: CommentSchema },
+      { name: Bookmark.name, schema: BookmarkSchema },
       { name: Reaction.name, schema: ReactionSchema }
     ]),
   ],

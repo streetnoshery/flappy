@@ -5,6 +5,7 @@ import { Post, PostDocument } from '../posts/schemas/post.schema';
 import { User } from '../users/schemas/user.schema';
 import { Like } from '../interactions/schemas/like.schema';
 import { Comment } from '../interactions/schemas/comment.schema';
+import { Bookmark } from '../interactions/schemas/bookmark.schema';
 import { Reaction } from '../reactions/schemas/reaction.schema';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class FeedService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Like.name) private likeModel: Model<Like>,
     @InjectModel(Comment.name) private commentModel: Model<Comment>,
+    @InjectModel(Bookmark.name) private bookmarkModel: Model<Bookmark>,
     @InjectModel(Reaction.name) private reactionModel: Model<Reaction>
   ) {}
 
@@ -64,12 +66,23 @@ export class FeedService {
         // Get comment count
         const commentCount = await this.commentModel.countDocuments({ postId: post._id.toString() });
         
+        // Get bookmark status if userId provided (only for other users' posts)
+        let isBookmarked = false;
+        if (userId && post.userId !== userId) {
+          const bookmark = await this.bookmarkModel.findOne({ 
+            postId: post._id.toString(), 
+            userId 
+          }).lean();
+          isBookmarked = !!bookmark;
+        }
+        
         return {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
           reactions,
           userReaction,
           commentCount,
+          isBookmarked,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
           isLiked: userReaction === 'love' // Heart is filled if user reacted with love
@@ -142,12 +155,23 @@ export class FeedService {
         // Get comment count
         const commentCount = await this.commentModel.countDocuments({ postId: post._id.toString() });
         
+        // Get bookmark status if userId provided (only for other users' posts)
+        let isBookmarked = false;
+        if (userId && post.userId !== userId) {
+          const bookmark = await this.bookmarkModel.findOne({ 
+            postId: post._id.toString(), 
+            userId 
+          }).lean();
+          isBookmarked = !!bookmark;
+        }
+        
         return {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
           reactions,
           userReaction,
           commentCount,
+          isBookmarked,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
           isLiked: userReaction === 'love' // Heart is filled if user reacted with love
@@ -220,12 +244,23 @@ export class FeedService {
         // Get comment count
         const commentCount = await this.commentModel.countDocuments({ postId: post._id.toString() });
         
+        // Get bookmark status if userId provided (only for other users' posts)
+        let isBookmarked = false;
+        if (userId && post.userId !== userId) {
+          const bookmark = await this.bookmarkModel.findOne({ 
+            postId: post._id.toString(), 
+            userId 
+          }).lean();
+          isBookmarked = !!bookmark;
+        }
+        
         return {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
           reactions,
           userReaction,
           commentCount,
+          isBookmarked,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
           isLiked: userReaction === 'love' // Heart is filled if user reacted with love
