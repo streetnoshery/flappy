@@ -6,6 +6,8 @@ export interface FeatureFlags {
   enableVideoUploads: boolean;
   enableAdvancedSearch: boolean;
   enableReactions: boolean;
+  enableNotifications: boolean;
+  enableChat: boolean;
 }
 
 @Injectable()
@@ -16,6 +18,8 @@ export class FeatureFlagsService {
     enableVideoUploads: process.env.ENABLE_VIDEO_UPLOADS === 'true',
     enableAdvancedSearch: process.env.ENABLE_ADVANCED_SEARCH === 'true',
     enableReactions: process.env.ENABLE_REACTIONS === 'true',
+    enableNotifications: process.env.ENABLE_NOTIFICATIONS === 'true',
+    enableChat: process.env.ENABLE_CHAT === 'true',
   };
 
   getFlags(): FeatureFlags {

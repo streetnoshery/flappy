@@ -2,9 +2,11 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Bell, MessageCircle, User, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 
 const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
   const { user, logout } = useAuth();
+  const { isFeatureEnabled } = useFeatureFlags();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -55,12 +57,16 @@ const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
             </button>
             
             {/* Desktop actions */}
-            <button className="hidden sm:block p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full">
-              <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-            <button className="hidden sm:block p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full">
-              <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
+            {isFeatureEnabled('enableNotifications') && (
+              <button className="hidden sm:block p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full">
+                <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            )}
+            {isFeatureEnabled('enableChat') && (
+              <button className="hidden sm:block p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full">
+                <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            )}
             
             {/* Profile - always visible */}
             <Link
