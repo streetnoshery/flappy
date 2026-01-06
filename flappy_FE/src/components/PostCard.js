@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, Share, Bookmark, MoreHorizontal } from 'lucide-react';
 import { interactionsAPI, reactionsAPI } from '../services/api';
-import { useMutation, useQueryClient } from 'react-query';
+import { useMutation, useQueryClient, useQuery } from 'react-query';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import { useAuth } from '../contexts/AuthContext';
 import CommentSection from './CommentSection';
 import toast from 'react-hot-toast';
 
@@ -13,8 +14,13 @@ const PostCard = ({ post }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [userReaction, setUserReaction] = useState(null);
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const queryClient = useQueryClient();
   const { isFeatureEnabled } = useFeatureFlags();
+  const { user } = useAuth();
+
+  // Check if this is user's own post
+  const isOwnPost = user?.userId === post.userId?.userId;
 
   // Initialize state from post data
   useEffect(() => {
@@ -70,12 +76,31 @@ const PostCard = ({ post }) => {
     }
   );
 
+  // Get bookmark status for posts that aren't user's own
+  const { data: bookmarkStatus } = useQuery(
+    ['bookmarkStatus', post._id],
+    () => interactionsAPI.getBookmarkStatus(post._id),
+    {
+      enabled: !isOwnPost && !!user?.userId,
+      onSuccess: (data) => {
+        setIsBookmarked(data.isBookmarked || false);
+      }
+    }
+  );
+
   const saveMutation = useMutation(
     () => interactionsAPI.savePost(post._id),
     {
-      onSuccess: () => {
-        toast.success('Post saved!');
+      onSuccess: (response) => {
+        const data = response.data;
+        setIsBookmarked(data.isBookmarked);
+        queryClient.invalidateQueries(['bookmarkStatus', post._id]);
+        queryClient.invalidateQueries(['userBookmarks', user?.userId]);
+        toast.success(data.message);
       },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to bookmark post');
+      }
     }
   );
 
@@ -240,12 +265,21 @@ const PostCard = ({ post }) => {
             </button>
           </div>
           
-          <button
-            onClick={() => saveMutation.mutate()}
-            className="text-gray-600 hover:text-yellow-600 transition-colors"
-          >
-            <Bookmark className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+          {/* Bookmark Button - Only show for other users' posts */}
+          {!isOwnPost && (
+            <button
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isLoading}
+              className={`transition-colors ${
+                isBookmarked 
+                  ? 'text-yellow-600 hover:text-yellow-700' 
+                  : 'text-gray-600 hover:text-yellow-600'
+              } ${saveMutation.isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={isBookmarked ? 'Remove from bookmarks' : 'Add to bookmarks'}
+            >
+              <Bookmark className={`w-4 h-4 sm:w-5 sm:h-5 ${isBookmarked ? 'fill-current' : ''}`} />
+            </button>
+          )}
         </div>
       </div>
 

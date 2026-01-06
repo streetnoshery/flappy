@@ -180,6 +180,55 @@ export class InteractionsController {
     }
   }
 
+  @Get('user/:userId/bookmarks')
+  async getUserBookmarks(@Param('userId') userId: string) {
+    console.log('🔖 [INTERACTIONS] GET /posts/user/:userId/bookmarks - Fetching user bookmarks', {
+      userId,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const bookmarks = await this.interactionsService.getUserBookmarks(userId);
+      console.log('✅ [INTERACTIONS] GET /posts/user/:userId/bookmarks - Bookmarks retrieved', {
+        userId,
+        bookmarksCount: bookmarks.length
+      });
+      return { data: bookmarks };
+    } catch (error) {
+      console.error('❌ [INTERACTIONS] GET /posts/user/:userId/bookmarks - Failed to retrieve bookmarks', {
+        error: error.message,
+        userId
+      });
+      throw error;
+    }
+  }
+
+  @Get(':id/bookmark-status')
+  async getBookmarkStatus(@Param('id') postId: string, @Query('userId') userId: string) {
+    console.log('🔖 [INTERACTIONS] GET /posts/:id/bookmark-status - Checking bookmark status', {
+      postId,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const result = await this.interactionsService.getBookmarkStatus(postId, userId);
+      console.log('✅ [INTERACTIONS] GET /posts/:id/bookmark-status - Bookmark status retrieved', {
+        postId,
+        userId,
+        isBookmarked: result.isBookmarked
+      });
+      return result;
+    } catch (error) {
+      console.error('❌ [INTERACTIONS] GET /posts/:id/bookmark-status - Failed to check bookmark status', {
+        error: error.message,
+        postId,
+        userId
+      });
+      throw error;
+    }
+  }
+
   @Get(':id/comments')
   async getComments(@Param('id') postId: string) {
     console.log('📝 [INTERACTIONS] GET /posts/:id/comments - Fetching comments', {

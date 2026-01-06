@@ -11,6 +11,7 @@ import CreatePost from './pages/CreatePost';
 import PostDetail from './pages/PostDetail';
 import Search from './pages/Search';
 import Explore from './pages/Explore';
+import Bookmarks from './pages/Bookmarks';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -49,6 +50,7 @@ function App() {
               <Route path="post/:postId" element={<PostDetail />} />
               <Route path="search" element={<Search />} />
               <Route path="explore" element={<Explore />} />
+              <Route path="bookmarks" element={<Bookmarks />} />
             </Route>
           </Routes>
         </div>

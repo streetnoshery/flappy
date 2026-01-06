@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Compass, PlusSquare, User, Search, X } from 'lucide-react';
+import { Home, Compass, PlusSquare, User, Search, Bookmark, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
@@ -12,6 +12,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { icon: Search, label: 'Search', path: '/search' },
     { icon: Compass, label: 'Explore', path: '/explore' },
     { icon: PlusSquare, label: 'Create', path: '/create' },
+    { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
     { icon: User, label: 'Profile', path: `/profile/${user?.id}` },
   ];
 

@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Comment } from './schemas/comment.schema';
 import { Like } from './schemas/like.schema';
+import { Bookmark } from './schemas/bookmark.schema';
 import { Post } from '../posts/schemas/post.schema';
 import { User } from '../users/schemas/user.schema';
 import { CreateCommentDto, CreateReplyDto } from './dto/interaction.dto';
@@ -12,6 +13,7 @@ export class InteractionsService {
   constructor(
     @InjectModel(Comment.name) private commentModel: Model<Comment>,
     @InjectModel(Like.name) private likeModel: Model<Like>,
+    @InjectModel(Bookmark.name) private bookmarkModel: Model<Bookmark>,
     @InjectModel(Post.name) private postModel: Model<Post>,
     @InjectModel(User.name) private userModel: Model<User>,
   ) {}
@@ -121,8 +123,77 @@ export class InteractionsService {
   }
 
   async savePost(postId: string, userId: string) {
-    // Mock save functionality - implement actual save logic with separate collection
-    return { message: 'Post saved successfully' };
+    // Check if user is trying to bookmark their own post
+    const post = await this.postModel.findById(postId);
+    if (!post) {
+      throw new Error('Post not found');
+    }
+    
+    if (post.userId === userId) {
+      throw new Error('You cannot bookmark your own posts');
+    }
+    
+    // Check if already bookmarked
+    const existingBookmark = await this.bookmarkModel.findOne({ postId, userId });
+    
+    if (existingBookmark) {
+      // Remove bookmark
+      await this.bookmarkModel.deleteOne({ postId, userId });
+      return { 
+        message: 'Post removed from bookmarks',
+        isBookmarked: false
+      };
+    } else {
+      // Add bookmark
+      const bookmark = new this.bookmarkModel({ 
+        postId, 
+        userId, 
+        postAuthorId: post.userId 
+      });
+      await bookmark.save();
+      return { 
+        message: 'Post bookmarked successfully',
+        isBookmarked: true
+      };
+    }
+  }
+
+  async getUserBookmarks(userId: string) {
+    try {
+      // Get all bookmarks for the user
+      const bookmarks = await this.bookmarkModel
+        .find({ userId })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      // Get the actual posts with full data
+      const bookmarkedPosts = await Promise.all(
+        bookmarks.map(async (bookmark) => {
+          const post = await this.postModel.findById(bookmark.postId).lean();
+          if (!post) return null; // Post might have been deleted
+          
+          // Populate user data for the post author
+          const user = await this.userModel.findOne({ userId: post.userId }, 'username profilePhotoUrl userId _id').lean();
+          
+          return {
+            ...post,
+            userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
+            bookmarkedAt: (bookmark as any).createdAt || new Date()
+          };
+        })
+      );
+
+      // Filter out null values (deleted posts)
+      return bookmarkedPosts.filter(post => post !== null);
+    } catch (error) {
+      console.error('Error getting user bookmarks:', error.message);
+      return [];
+    }
+  }
+
+  async getBookmarkStatus(postId: string, userId: string) {
+    const bookmark = await this.bookmarkModel.findOne({ postId, userId });
+    return { isBookmarked: !!bookmark };
   }
 
   async getComments(postId: string) {

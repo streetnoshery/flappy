@@ -152,6 +152,11 @@ export const interactionsAPI = {
     return api.post(`/posts/${postId}/save`, { userId: user?.userId, email: user?.email });
   },
   getComments: (postId) => api.get(`/posts/${postId}/comments`),
+  getUserBookmarks: (userId) => api.get(`/posts/user/${userId}/bookmarks`),
+  getBookmarkStatus: (postId) => {
+    const user = getUserData();
+    return api.get(`/posts/${postId}/bookmark-status?userId=${user?.userId}`);
+  },
 };
 
 // Reactions API
