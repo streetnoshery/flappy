@@ -222,7 +222,13 @@ const PostCard = ({ post }) => {
               )}
             </div>
             
-            <button className="flex items-center space-x-1.5 sm:space-x-2 text-gray-600 hover:text-green-600 transition-colors">
+            <button 
+              onClick={() => toast('Share feature coming soon!', {
+                icon: '🔗',
+                duration: 3000,
+              })}
+              className="flex items-center space-x-1.5 sm:space-x-2 text-gray-600 hover:text-green-600 transition-colors"
+            >
               <Share className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm hidden sm:inline">Share</span>
             </button>
