@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { usersAPI, postsAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
-import PostCard from '../components/PostCard';
+import ProfilePostCard from '../components/ProfilePostCard';
 
 const Profile = () => {
   const { userId } = useParams();
@@ -35,7 +35,10 @@ const Profile = () => {
   // Safely extract posts with multiple fallbacks
   let posts = [];
   try {
-    if (postsData && postsData.data && Array.isArray(postsData.data)) {
+    // Check for axios response structure first (response.data.data)
+    if (postsData && postsData.data && postsData.data.data && Array.isArray(postsData.data.data)) {
+      posts = postsData.data.data;
+    } else if (postsData && postsData.data && Array.isArray(postsData.data)) {
       posts = postsData.data;
     } else if (postsData && Array.isArray(postsData)) {
       posts = postsData;
@@ -108,7 +111,7 @@ const Profile = () => {
         ) : (
           <div className="space-y-4 sm:space-y-6">
             {posts.map((post) => (
-              <PostCard key={post._id} post={post} />
+              <ProfilePostCard key={post._id} post={post} />
             ))}
           </div>
         )}

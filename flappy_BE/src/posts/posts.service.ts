@@ -179,7 +179,7 @@ export class PostsService {
     return trendingTags;
   }
 
-  async findByUserId(userId: string) {
+  async findByUserId(userId: string, currentUserId?: string) {
     const posts = await this.postModel
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -201,6 +201,16 @@ export class PostsService {
           return acc;
         }, {});
         
+        // Get current user's reaction if provided
+        let userReaction = null;
+        if (currentUserId) {
+          const userReactionDoc = await this.reactionModel.findOne({ 
+            postId: post._id.toString(), 
+            userId: currentUserId 
+          }).lean();
+          userReaction = userReactionDoc ? userReactionDoc.type : null;
+        }
+        
         // Get comment count
         const commentCount = await this.commentModel.countDocuments({ postId: post._id.toString() });
         
@@ -208,11 +218,11 @@ export class PostsService {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
           reactions,
-          userReaction: null, // We don't need user reaction for profile view
+          userReaction,
           commentCount,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
-          isLiked: false // Default to false for profile view
+          isLiked: userReaction === 'love' // Heart is filled if user reacted with love
         };
       })
     );

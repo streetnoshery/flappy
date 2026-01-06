@@ -6,6 +6,7 @@ import {
   Delete, 
   Param, 
   Body, 
+  Query,
   BadRequestException
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
@@ -82,23 +83,26 @@ export class PostsController {
   }
 
   @Get('user/:userId')
-  async getPostsByUserId(@Param('userId') userId: string) {
+  async getPostsByUserId(@Param('userId') userId: string, @Query('currentUserId') currentUserId?: string) {
     console.log('👤 [POSTS] GET /posts/user/:userId - Fetching posts by user', {
       userId,
+      currentUserId,
       timestamp: new Date().toISOString()
     });
     
     try {
-      const posts = await this.postsService.findByUserId(userId);
+      const posts = await this.postsService.findByUserId(userId, currentUserId);
       console.log('✅ [POSTS] GET /posts/user/:userId - User posts retrieved', {
         userId,
+        currentUserId,
         postsCount: posts.length
       });
       return { data: posts };
     } catch (error) {
       console.error('❌ [POSTS] GET /posts/user/:userId - Failed to retrieve user posts', {
         error: error.message,
-        userId
+        userId,
+        currentUserId
       });
       throw error;
     }

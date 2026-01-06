@@ -79,7 +79,10 @@ export const postsAPI = {
     return api.post('/posts', { ...data, userId: user?.userId, email: user?.email });
   },
   getPost: (id) => api.get(`/posts/${id}`),
-  getPostsByUserId: (userId) => api.get(`/posts/user/${userId}`),
+  getPostsByUserId: (userId) => {
+    const user = getUserData();
+    return api.get(`/posts/user/${userId}${user?.userId ? `?currentUserId=${user.userId}` : ''}`);
+  },
   updatePost: (id, data) => {
     const user = getUserData();
     return api.put(`/posts/${id}`, { ...data, userId: user?.userId, email: user?.email });
