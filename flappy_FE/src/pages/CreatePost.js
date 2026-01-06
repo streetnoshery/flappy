@@ -58,7 +58,6 @@ const CreatePost = () => {
   const onSubmit = useCallback((data) => {
     // Prevent multiple submissions
     if (createPostMutation.isLoading || submissionInProgress.current) {
-      console.log('Submission already in progress, ignoring duplicate submission');
       return;
     }
 
@@ -73,7 +72,6 @@ const CreatePost = () => {
       return;
     }
     
-    console.log('Submitting post creation:', { type: postType, content: data.content });
     createPostMutation.mutate({
       ...data,
       type: postType,
@@ -253,37 +251,6 @@ const CreatePost = () => {
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-4">
-            {/* Debug button for testing auth */}
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  // Check local storage first
-                  const user = localStorage.getItem('user');
-                  
-                  console.log('🔍 [DEBUG] Current auth state:', {
-                    hasUser: !!user,
-                    user: user ? JSON.parse(user) : null
-                  });
-                  
-                  if (!user) {
-                    toast.error('No user data found. Please login again.');
-                    return;
-                  }
-                  
-                  const response = await postsAPI.testAuth();
-                  toast.success('Auth test successful!');
-                  console.log('Auth test response:', response.data);
-                } catch (error) {
-                  toast.error('Auth test failed: ' + (error.response?.data?.message || error.message));
-                  console.error('Auth test error:', error);
-                }
-              }}
-              disabled={createPostMutation.isLoading}
-              className="w-full sm:w-auto px-4 py-2 text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors disabled:opacity-50 text-sm"
-            >
-              Test Auth
-            </button>
             <button
               type="button"
               onClick={() => navigate('/')}

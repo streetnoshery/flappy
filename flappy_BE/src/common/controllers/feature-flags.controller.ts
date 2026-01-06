@@ -7,16 +7,8 @@ export class FeatureFlagsController {
 
   @Get()
   getFeatureFlags() {
-    console.log('🚩 [FEATURE_FLAGS] GET /feature-flags - Fetching feature flags', {
-      timestamp: new Date().toISOString()
-    });
-    
     try {
       const flags = this.featureFlagsService.getFlags();
-      console.log('✅ [FEATURE_FLAGS] GET /feature-flags - Feature flags retrieved', {
-        flags,
-        timestamp: new Date().toISOString()
-      });
       return flags;
     } catch (error) {
       console.error('❌ [FEATURE_FLAGS] GET /feature-flags - Failed to retrieve feature flags', {
@@ -29,16 +21,8 @@ export class FeatureFlagsController {
 
   @Get('post-types')
   getEnabledPostTypes() {
-    console.log('📝 [FEATURE_FLAGS] GET /feature-flags/post-types - Fetching enabled post types', {
-      timestamp: new Date().toISOString()
-    });
-    
     try {
       const enabledTypes = this.featureFlagsService.getEnabledPostTypes();
-      console.log('✅ [FEATURE_FLAGS] GET /feature-flags/post-types - Enabled post types retrieved', {
-        enabledTypes,
-        timestamp: new Date().toISOString()
-      });
       return { enabledTypes };
     } catch (error) {
       console.error('❌ [FEATURE_FLAGS] GET /feature-flags/post-types - Failed to retrieve enabled post types', {

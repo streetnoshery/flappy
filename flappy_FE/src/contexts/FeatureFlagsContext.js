@@ -41,11 +41,6 @@ export const FeatureFlagsProvider = ({ children }) => {
       // Fetch enabled post types
       const postTypesResponse = await featureFlagsAPI.getEnabledPostTypes();
       setEnabledPostTypes(postTypesResponse.data.enabledTypes);
-      
-      console.log('🚩 [FEATURE_FLAGS] Feature flags loaded', {
-        flags: flagsResponse.data,
-        enabledPostTypes: postTypesResponse.data.enabledTypes
-      });
     } catch (error) {
       console.error('❌ [FEATURE_FLAGS] Failed to load feature flags', error);
       setError('Failed to load feature flags');

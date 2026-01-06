@@ -23,20 +23,11 @@ export class FeatureFlagsService {
   };
 
   getFlags(): FeatureFlags {
-    console.log('🚩 [FEATURE_FLAGS] Feature flags requested', {
-      flags: this.flags,
-      timestamp: new Date().toISOString()
-    });
     return this.flags;
   }
 
   isFeatureEnabled(feature: keyof FeatureFlags): boolean {
-    const isEnabled = this.flags[feature];
-    console.log(`🚩 [FEATURE_FLAGS] Feature check: ${feature}`, {
-      enabled: isEnabled,
-      timestamp: new Date().toISOString()
-    });
-    return isEnabled;
+    return this.flags[feature];
   }
 
   getEnabledPostTypes(): string[] {
@@ -50,11 +41,6 @@ export class FeatureFlagsService {
       if (this.isFeatureEnabled('enableGifPosts')) {
         enabledTypes.push('gif');
       }
-      
-      console.log('📝 [FEATURE_FLAGS] Enabled post types', {
-        enabledTypes,
-        timestamp: new Date().toISOString()
-      });
       
       return enabledTypes;
     } catch (error) {
@@ -71,13 +57,6 @@ export class FeatureFlagsService {
     try {
       const enabledTypes = this.getEnabledPostTypes();
       const isValid = enabledTypes.includes(type);
-      
-      console.log('✅ [FEATURE_FLAGS] Post type validation', {
-        type,
-        isValid,
-        enabledTypes,
-        timestamp: new Date().toISOString()
-      });
       
       return isValid;
     } catch (error) {

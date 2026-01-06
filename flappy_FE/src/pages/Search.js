@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
-import { Search as SearchIcon, User, Hash } from 'lucide-react';
+import { Search as SearchIcon, User, Hash, AlertCircle } from 'lucide-react';
 import { searchAPI } from '../services/api';
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const Search = () => {
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState('users');
+  const { isFeatureEnabled, loading: flagsLoading } = useFeatureFlags();
+
+  // Check if advanced search is enabled
+  const isAdvancedSearchEnabled = isFeatureEnabled('enableAdvancedSearch');
 
   const { data: usersData, isLoading: usersLoading } = useQuery(
     ['searchUsers', query],
     () => searchAPI.searchUsers(query),
     {
-      enabled: query.length > 0 && activeTab === 'users',
+      enabled: query.length > 0 && activeTab === 'users' && isAdvancedSearchEnabled,
     }
   );
 
@@ -20,13 +25,16 @@ const Search = () => {
     ['searchPosts', query],
     () => searchAPI.searchPosts(query),
     {
-      enabled: query.length > 0 && activeTab === 'posts',
+      enabled: query.length > 0 && activeTab === 'posts' && isAdvancedSearchEnabled,
     }
   );
 
   const { data: trendingData } = useQuery(
     'trendingTags',
-    () => searchAPI.getTrendingTags()
+    () => searchAPI.getTrendingTags(),
+    {
+      enabled: isAdvancedSearchEnabled,
+    }
   );
 
   const users = usersData?.data || [];
@@ -37,6 +45,34 @@ const Search = () => {
     { id: 'users', label: 'Users', icon: User },
     { id: 'posts', label: 'Posts', icon: Hash },
   ];
+
+  // Show loading state while feature flags are loading
+  if (flagsLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <LoadingSpinner />
+        </div>
+      </div>
+    );
+  }
+
+  // Show disabled message if advanced search is not enabled
+  if (!isAdvancedSearchEnabled) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="text-center py-8">
+            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Search Coming Soon</h2>
+            <p className="text-gray-600">
+              Advanced search functionality is currently disabled. Check back later!
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
