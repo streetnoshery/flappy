@@ -18,6 +18,8 @@ export const FeatureFlagsProvider = ({ children }) => {
     enableVideoUploads: false,
     enableAdvancedSearch: false,
     enableReactions: false,
+    enableNotifications: false,
+    enableChat: false,
   });
   const [enabledPostTypes, setEnabledPostTypes] = useState(['text']);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,8 @@ export const FeatureFlagsProvider = ({ children }) => {
         enableVideoUploads: false,
         enableAdvancedSearch: false,
         enableReactions: false,
+        enableNotifications: false,
+        enableChat: false,
       });
       setEnabledPostTypes(['text']);
     } finally {
