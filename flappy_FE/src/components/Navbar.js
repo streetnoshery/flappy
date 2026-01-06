@@ -33,22 +33,24 @@ const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
             </Link>
           </div>
 
-          {/* Center - Search (hidden on mobile) */}
-          <div className="hidden sm:flex flex-1 max-w-lg mx-4 lg:mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-full pl-8 sm:pl-10 pr-4 py-1.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                onClick={() => navigate('/search')}
-              />
+          {/* Center - Search (hidden on mobile, only show desktop search if advanced search is enabled) */}
+          {isFeatureEnabled('enableAdvancedSearch') && (
+            <div className="hidden sm:flex flex-1 max-w-lg mx-4 lg:mx-8">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-full pl-8 sm:pl-10 pr-4 py-1.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  onClick={() => navigate('/search')}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Right side - Actions */}
           <div className="flex items-center space-x-1 sm:space-x-2">
-            {/* Mobile search button */}
+            {/* Mobile search button - always show but may redirect to coming soon */}
             <button 
               onClick={() => navigate('/search')}
               className="sm:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full"
