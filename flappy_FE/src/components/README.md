@@ -106,6 +106,8 @@ const menuItems = [
 - Media display for image/GIF posts
 - Hashtag rendering and interaction
 - Responsive design for all screen sizes
+- Real-time engagement updates
+- Performance-optimized bookmark status
 
 ### Post Display Elements
 ```javascript
@@ -129,6 +131,7 @@ const menuItems = [
   likeCount={post.likeCount}
   commentCount={post.commentCount}
   isBookmarked={post.isBookmarked}
+  isOwnPost={isOwnPost}
   onLike={handleLike}
   onComment={handleComment}
   onBookmark={handleBookmark}
@@ -136,15 +139,52 @@ const menuItems = [
 ```
 
 ### Interaction Features
-- **Like Button**: Heart icon that turns red when liked
-- **Comment Button**: Opens comment section
-- **Bookmark Button**: Save/unsave post functionality
+- **Like Button**: Heart icon that turns red when liked, shows reaction count
+- **Comment Button**: Opens comment section with real-time updates
+- **Bookmark Button**: Toggle bookmark functionality with visual feedback
+  - Only visible for other users' posts (hidden for own posts)
+  - Filled bookmark icon when bookmarked
+  - Empty bookmark icon when not bookmarked
+  - Instant visual feedback on toggle
+  - Prevents multiple bookmark attempts
 - **Share Button**: Future enhancement
+
+### Bookmark Functionality
+```javascript
+// Bookmark state management
+const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked || false);
+
+// Bookmark toggle with optimistic updates
+const saveMutation = useMutation(
+  () => interactionsAPI.savePost(post._id),
+  {
+    onSuccess: (response) => {
+      setIsBookmarked(response.data.isBookmarked);
+      // Update cache for all related queries
+      queryClient.invalidateQueries('homeFeed');
+      queryClient.invalidateQueries('exploreFeed');
+      queryClient.invalidateQueries(['userBookmarks', user?.userId]);
+    }
+  }
+);
+```
+
+### Performance Optimizations
+- **Bulk Data Loading**: Bookmark status loaded with feed data (no separate API calls)
+- **Optimistic Updates**: Immediate UI feedback before server confirmation
+- **Smart Caching**: Efficient cache invalidation for related queries
+- **Conditional Rendering**: Bookmark button only shown for applicable posts
 
 ### Feature Flag Integration
 - Reaction buttons controlled by `enableReactions` flag
-- Bookmark functionality always available
+- Bookmark functionality always available for other users' posts
 - Comment system always available
+
+### Business Rules
+- Users cannot bookmark their own posts (button hidden)
+- One bookmark per user per post (toggle functionality)
+- Bookmark status visible in all feeds (home, explore)
+- Real-time bookmark count updates across all instances
 
 ## ProfilePostCard Component
 

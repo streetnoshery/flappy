@@ -135,29 +135,75 @@ if (!isFeatureEnabled('enableAdvancedSearch')) {
 ## Bookmarks Page
 
 ### Features
-- Display all user's saved posts
-- Post interaction capabilities
-- Empty state handling
-- Responsive grid layout
-- Remove bookmark functionality
+- Display all user's saved posts in chronological order
+- Full post interaction capabilities (like, comment, unbookmark)
+- Empty state with helpful messaging
+- Responsive grid/list layout
+- Real-time bookmark status updates
+- Performance-optimized data loading
 
 ### Data Management
 ```javascript
-const { data: bookmarks, isLoading } = useQuery(
+const { data: bookmarksData, isLoading, error } = useQuery(
   ['userBookmarks', user?.userId],
   () => interactionsAPI.getUserBookmarks(user.userId),
   {
     enabled: !!user?.userId,
+    refetchOnWindowFocus: false,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   }
 );
+
+const bookmarks = bookmarksData?.data || [];
 ```
 
-### Bookmark Display
-- Full post information
-- Bookmark timestamp
-- Remove bookmark option
-- Post engagement metrics
-- User information populated
+### Bookmark Display Features
+- **Full Post Information**: Complete post content with media
+- **Bookmark Timestamp**: Shows when post was bookmarked
+- **Engagement Metrics**: Like counts, comment counts, reaction data
+- **User Information**: Post author details with profile photos
+- **Interactive Elements**: All standard post interactions available
+- **Remove Bookmark**: Easy unbookmark functionality
+
+### Performance Optimizations
+- **Bulk Data Loading**: All bookmark data loaded in single API call
+- **Complete Post Data**: Includes reactions, comments, user data
+- **Efficient Caching**: Smart cache management with React Query
+- **Optimistic Updates**: Immediate UI feedback for bookmark changes
+
+### User Experience
+```javascript
+// Empty state handling
+{bookmarks.length === 0 ? (
+  <div className="text-center py-8">
+    <Bookmark className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+      No bookmarks yet
+    </h3>
+    <p className="text-gray-600">
+      Posts you bookmark will appear here for easy access later.
+    </p>
+  </div>
+) : (
+  <div className="space-y-4">
+    {bookmarks.map((post) => (
+      <PostCard key={post._id} post={post} />
+    ))}
+  </div>
+)}
+```
+
+### Business Logic
+- **User-specific Content**: Only shows current user's bookmarks
+- **Real-time Updates**: Bookmark changes reflect immediately
+- **Post Validation**: Handles deleted posts gracefully
+- **Access Control**: Private to authenticated users only
+
+### Integration Points
+- **PostCard Component**: Reuses standard post display component
+- **Interactions API**: Direct integration with bookmark endpoints
+- **Feed Updates**: Changes sync with home and explore feeds
+- **Navigation**: Accessible from sidebar navigation
 
 ## Explore Page
 

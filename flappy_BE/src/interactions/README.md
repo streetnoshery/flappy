@@ -45,7 +45,7 @@ The Interactions module handles social interactions including comments and bookm
 
 ### Comments
 
-#### POST /interactions/posts/:postId/comments
+#### POST /posts/:postId/comment
 Add a comment to a post.
 
 **Parameters:**
@@ -56,29 +56,47 @@ Add a comment to a post.
 {
   "userId": "uuid-string (required)",
   "email": "string (required)",
-  "content": "string (required, max: 500)",
-  "parentCommentId": "mongodb-object-id (optional)"
+  "text": "string (required, max: 500)"
 }
 ```
 
 **Response:**
 ```json
 {
-  "_id": "mongodb-object-id",
-  "postId": "mongodb-object-id",
-  "userId": {
+  "data": {
     "_id": "mongodb-object-id",
-    "userId": "uuid-string",
-    "username": "string"
-  },
-  "content": "string",
-  "parentCommentId": "mongodb-object-id",
-  "createdAt": "ISO-date",
-  "updatedAt": "ISO-date"
+    "postId": "mongodb-object-id",
+    "userId": {
+      "_id": "mongodb-object-id",
+      "userId": "uuid-string",
+      "username": "string",
+      "profilePhotoUrl": "string"
+    },
+    "text": "string",
+    "replies": [],
+    "createdAt": "ISO-date",
+    "updatedAt": "ISO-date"
+  }
 }
 ```
 
-#### GET /interactions/posts/:postId/comments
+#### POST /posts/:postId/comment/:commentId/reply
+Add a reply to a comment.
+
+**Parameters:**
+- `postId` - MongoDB ObjectId of the post
+- `commentId` - MongoDB ObjectId of the comment
+
+**Request Body:**
+```json
+{
+  "userId": "uuid-string (required)",
+  "email": "string (required)",
+  "text": "string (required, max: 500)"
+}
+```
+
+#### GET /posts/:postId/comments
 Get all comments for a post.
 
 **Parameters:**
@@ -86,68 +104,78 @@ Get all comments for a post.
 
 **Response:**
 ```json
-[
-  {
-    "_id": "mongodb-object-id",
-    "postId": "mongodb-object-id",
-    "userId": {
+{
+  "data": [
+    {
       "_id": "mongodb-object-id",
-      "userId": "uuid-string",
-      "username": "string"
-    },
-    "content": "string",
-    "parentCommentId": "mongodb-object-id",
-    "createdAt": "ISO-date",
-    "updatedAt": "ISO-date"
-  }
-]
+      "postId": "mongodb-object-id",
+      "userId": {
+        "_id": "mongodb-object-id",
+        "userId": "uuid-string",
+        "username": "string",
+        "profilePhotoUrl": "string"
+      },
+      "text": "string",
+      "replies": [
+        {
+          "userId": {
+            "userId": "uuid-string",
+            "username": "string",
+            "profilePhotoUrl": "string"
+          },
+          "text": "string",
+          "createdAt": "ISO-date"
+        }
+      ],
+      "createdAt": "ISO-date",
+      "updatedAt": "ISO-date"
+    }
+  ]
+}
 ```
 
 ### Bookmarks
 
-#### POST /interactions/bookmarks
-Bookmark a post for later viewing.
+#### POST /posts/:postId/save
+Toggle bookmark on a post (bookmark/unbookmark).
+
+**Parameters:**
+- `postId` - MongoDB ObjectId of the post
 
 **Request Body:**
 ```json
 {
   "userId": "uuid-string (required)",
-  "postId": "mongodb-object-id (required)"
+  "email": "string (required)"
 }
 ```
 
-**Response:**
+**Response (Bookmark Added):**
 ```json
 {
   "message": "Post bookmarked successfully",
-  "bookmark": {
-    "_id": "mongodb-object-id",
-    "userId": "uuid-string",
-    "postId": "mongodb-object-id",
-    "bookmarkedAt": "ISO-date"
-  }
+  "isBookmarked": true
 }
 ```
 
-#### DELETE /interactions/bookmarks
-Remove a bookmark from a post.
-
-**Request Body:**
+**Response (Bookmark Removed):**
 ```json
 {
-  "userId": "uuid-string (required)",
-  "postId": "mongodb-object-id (required)"
+  "message": "Post removed from bookmarks",
+  "isBookmarked": false
 }
 ```
 
-**Response:**
+**Error Response (Own Post):**
 ```json
 {
-  "message": "Bookmark removed successfully"
+  "message": "You cannot bookmark your own posts",
+  "error": "Bad Request",
+  "statusCode": 400
 }
 ```
 
-#### GET /interactions/posts/:userId/bookmarks
+#### GET /posts/user/:userId/bookmarks
 Get all bookmarked posts for a user.
 
 **Parameters:**
@@ -155,44 +183,73 @@ Get all bookmarked posts for a user.
 
 **Response:**
 ```json
-[
-  {
-    "_id": "mongodb-object-id",
-    "userId": {
+{
+  "data": [
+    {
       "_id": "mongodb-object-id",
-      "userId": "uuid-string",
-      "username": "string"
-    },
-    "email": "string",
-    "type": "text|image|gif",
-    "content": "string",
-    "mediaUrl": "string",
-    "hashtags": ["string"],
-    "createdAt": "ISO-date",
-    "updatedAt": "ISO-date",
-    "bookmarkedAt": "ISO-date"
-  }
-]
+      "userId": {
+        "_id": "mongodb-object-id",
+        "userId": "uuid-string",
+        "username": "string",
+        "profilePhotoUrl": "string"
+      },
+      "email": "string",
+      "type": "text|image|gif",
+      "content": "string",
+      "mediaUrl": "string",
+      "hashtags": ["string"],
+      "reactions": {
+        "love": 5,
+        "laugh": 2
+      },
+      "userReaction": "love",
+      "commentCount": 3,
+      "likeCount": 7,
+      "isLiked": true,
+      "bookmarkedAt": "ISO-date",
+      "createdAt": "ISO-date",
+      "updatedAt": "ISO-date"
+    }
+  ]
+}
+```
+
+#### GET /posts/:postId/bookmark-status
+Check if a post is bookmarked by a user.
+
+**Parameters:**
+- `postId` - MongoDB ObjectId of the post
+
+**Query Parameters:**
+- `userId` - UUID string of the user
+
+**Response:**
+```json
+{
+  "isBookmarked": true
+}
 ```
 
 ## Business Logic
 
 ### Comment System
-- **Nested Comments**: Support for replies to comments via `parentCommentId`
-- **User Population**: Automatic user information inclusion
-- **Chronological Order**: Comments sorted by creation date
-- **Content Validation**: Maximum 500 characters per comment
+- **Nested Replies**: Support for replies within comments via replies array
+- **User Population**: Automatic user information inclusion with profile photos
+- **Chronological Order**: Comments sorted by creation date (newest first)
+- **Content Validation**: Text field validation with proper error handling
 
 ### Bookmark System
-- **Unique Bookmarks**: One bookmark per user per post
-- **Toggle Functionality**: Add/remove bookmarks
-- **User Restriction**: Users can only bookmark others' posts
-- **Post Population**: Full post data in bookmark responses
+- **Toggle Functionality**: Single endpoint for bookmark/unbookmark operations
+- **Own Post Restriction**: Users cannot bookmark their own posts (400 Bad Request)
+- **Duplicate Prevention**: One bookmark per user per post (automatic toggle)
+- **Feed Integration**: Bookmark status included in all feed responses for performance
+- **Full Post Data**: Bookmarked posts include reactions, comments, and engagement data
 
-### Data Population
-- User information populated in all responses
-- Post data populated in bookmark responses
-- Maintains referential integrity across collections
+### Performance Optimizations
+- **Bulk Loading**: Bookmark status loaded with feed data (eliminates N+1 queries)
+- **Compound Indexing**: MongoDB compound index on userId + postId for fast lookups
+- **Selective Loading**: Only loads bookmark status for other users' posts
+- **User Data Caching**: Efficient user data population to minimize database calls
 
 ## Validation Rules
 

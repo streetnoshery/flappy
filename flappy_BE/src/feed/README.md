@@ -1,53 +1,85 @@
 # Feed Module
 
 ## Overview
-The Feed module provides the main social media feed functionality, aggregating posts from all users with engagement metrics, user information, and pagination support.
+The Feed module provides comprehensive social media feed functionality, aggregating posts from all users with engagement metrics, user information, bookmark status, and pagination support. It includes optimized performance features to minimize database queries and provide real-time engagement data.
 
 ## Architecture
 - **Controller**: `feed.controller.ts` - HTTP request handlers for feed endpoints
 - **Service**: `feed.service.ts` - Business logic for feed generation and aggregation
-- **Module**: `feed.module.ts` - NestJS module configuration
+- **Module**: `feed.module.ts` - NestJS module configuration with all required dependencies
 
 ## Features
-- Home feed with all posts
-- Post aggregation with user information
-- Engagement metrics (likes, comments, bookmarks)
-- Chronological ordering (newest first)
-- User data population
-- Comment count calculation
+- **Multiple Feed Types**: Home, Explore, and Reels feeds
+- **Post Aggregation**: Complete post data with user information
+- **Engagement Metrics**: Likes, comments, reactions, and bookmark status
+- **Performance Optimization**: Bulk loading of all engagement data
+- **Chronological Ordering**: Posts sorted by newest first
+- **User Data Population**: Complete user profiles with photos
+- **Pagination Support**: Efficient pagination with hasMore indicators
+- **Bookmark Integration**: Real-time bookmark status for all posts
 
 ## API Endpoints
 
-### GET /feed
+### GET /feed/home
 Get the main home feed with all posts and engagement data.
 
 **Query Parameters:**
-- `limit` - Number of posts to return (optional, default: 20)
-- `offset` - Number of posts to skip (optional, default: 0)
+- `page` - Page number (optional, default: 1)
+- `userId` - User ID for personalized data (optional, UUID format)
 
 **Response:**
 ```json
-[
-  {
-    "_id": "mongodb-object-id",
-    "userId": {
+{
+  "posts": [
+    {
       "_id": "mongodb-object-id",
-      "userId": "uuid-string",
-      "username": "string",
-      "profilePhotoUrl": "string"
-    },
-    "email": "string",
-    "type": "text|image|gif",
-    "content": "string",
-    "mediaUrl": "string",
-    "hashtags": ["string"],
-    "createdAt": "ISO-date",
-    "updatedAt": "ISO-date",
-    "likeCount": "number",
-    "commentCount": "number",
-    "isBookmarked": "boolean"
-  }
-]
+      "userId": {
+        "_id": "mongodb-object-id",
+        "userId": "uuid-string",
+        "username": "string",
+        "profilePhotoUrl": "string"
+      },
+      "email": "string",
+      "type": "text|image|gif",
+      "content": "string",
+      "mediaUrl": "string",
+      "hashtags": ["string"],
+      "reactions": {
+        "love": 5,
+        "laugh": 2,
+        "wow": 1
+      },
+      "userReaction": "love",
+      "commentCount": 8,
+      "likeCount": 8,
+      "isLiked": true,
+      "isBookmarked": false,
+      "createdAt": "ISO-date",
+      "updatedAt": "ISO-date"
+    }
+  ],
+  "page": 1,
+  "hasMore": true
+}
+```
+
+### GET /feed/explore
+Get the explore feed with engagement-based ranking.
+
+**Query Parameters:**
+- `page` - Page number (optional, default: 1)
+- `userId` - User ID for personalized data (optional, UUID format)
+
+**Response:** Same structure as home feed with engagement-based ordering
+
+### GET /feed/reels
+Get the reels feed with visual content only (images/GIFs).
+
+**Query Parameters:**
+- `page` - Page number (optional, default: 1)
+- `userId` - User ID for personalized data (optional, UUID format)
+
+**Response:** Same structure as home feed, filtered for visual content
 ```
 
 ## Feed Algorithm
@@ -226,3 +258,90 @@ const paginatedFeed = await feedService.getHomeFeed(10, 20);
 - Engagement metrics are calculated in real-time
 - User information is populated for display purposes
 - Pagination supports large datasets efficiently
+
+## Performance Optimizations
+
+### Bookmark Status Integration
+- **Bulk Loading**: Bookmark status loaded with feed data in single query
+- **Conditional Loading**: Only checks bookmark status for other users' posts
+- **Eliminates N+1 Queries**: Prevents separate API calls for each post's bookmark status
+- **Real-time Updates**: Bookmark status reflects current state without caching issues
+
+### Database Efficiency
+- **Aggregation Pipelines**: Uses MongoDB aggregation for efficient data processing
+- **Selective Population**: Only populates necessary user fields to minimize data transfer
+- **Indexed Queries**: Optimized queries with proper database indexing
+- **Pagination**: Efficient skip/limit pagination with hasMore indicators
+
+### Memory Management
+- **Lean Queries**: Uses .lean() for better performance and reduced memory usage
+- **Batch Processing**: Processes posts in batches to manage memory consumption
+- **Efficient Mapping**: Minimizes object creation and transformation overhead
+
+## Business Logic
+
+### Feed Generation Rules
+1. **Chronological Order**: All feeds sorted by creation date (newest first)
+2. **User Data Population**: Complete user profiles included for all posts
+3. **Engagement Calculation**: Real-time like counts, comment counts, and reaction data
+4. **Bookmark Status**: Shows bookmark status only for other users' posts
+5. **Content Filtering**: Reels feed filters for image/GIF content only
+
+### Personalization Features
+- **User-specific Data**: When userId provided, includes personalized engagement data
+- **Reaction Status**: Shows user's specific reaction to each post
+- **Bookmark Status**: Shows whether user has bookmarked each post
+- **Like Status**: Indicates if user has liked (reacted with love) to posts
+
+## Integration Points
+
+### With Interactions Module
+- Calculates comment counts per post
+- Includes bookmark status for performance optimization
+- Provides real-time engagement data
+
+### With Reactions Module
+- Aggregates reaction counts by type
+- Includes user-specific reaction status
+- Calculates total like counts for backward compatibility
+
+### With Posts Module
+- Retrieves core post data and metadata
+- Validates post existence and accessibility
+- Includes post type filtering for specialized feeds
+
+### With Users Module
+- Populates complete user profile data
+- Validates user permissions and access
+- Provides user-specific personalization data
+
+## Dependencies
+- `mongoose` - MongoDB ODM and aggregation pipelines
+- Posts, Users, Reactions, Interactions modules for data relationships
+- Bookmark, Comment, Reaction schemas for engagement metrics
+
+## Performance Considerations
+- **Database Indexes**: Ensure proper indexing on createdAt, userId, postId fields
+- **Query Optimization**: Use aggregation pipelines for complex data processing
+- **Memory Usage**: Monitor memory consumption with large datasets
+- **Response Time**: Optimize for sub-200ms response times on typical loads
+
+## Error Handling
+- **Graceful Degradation**: Continues operation even if some engagement data fails
+- **Fallback Values**: Provides default values for missing engagement metrics
+- **Error Logging**: Comprehensive logging for debugging and monitoring
+- **User Experience**: Maintains feed functionality even with partial data failures
+
+## Future Enhancements
+- **Algorithmic Ranking**: Implement engagement-based feed ranking for explore
+- **Real-time Updates**: WebSocket integration for live feed updates
+- **Content Filtering**: Advanced filtering based on user preferences
+- **Caching Layer**: Redis caching for frequently accessed feed data
+- **Analytics Integration**: Track feed engagement and user behavior metrics
+
+## Console Logging
+- 🏠 Home feed requests with pagination and user context
+- 🔍 Explore feed requests with engagement tracking
+- 🎬 Reels feed requests with content type filtering
+- ✅ Successful feed generation with performance metrics
+- ❌ Feed generation errors with detailed context

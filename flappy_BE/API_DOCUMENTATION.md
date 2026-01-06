@@ -495,13 +495,13 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
 ## 🏠 Feed Module
 
 ### GET /feed/home
-**Purpose**: Get paginated home feed with like information  
-**Business Logic**: Returns all posts sorted by newest, 10 posts per page, includes like counts and user like status  
-**Authentication**: None required (userId optional for like status)
+**Purpose**: Get paginated home feed with like information and bookmark status  
+**Business Logic**: Returns all posts sorted by newest, 10 posts per page, includes like counts, user like status, and bookmark status  
+**Authentication**: None required (userId optional for like status and bookmark status)
 
 **Query Parameters**:
 - `page`: Page number (default: 1)
-- `userId`: User ID (optional, for checking like status on posts)
+- `userId`: User ID (optional, for checking like status and bookmark status on posts)
 
 **Response (200 OK)**:
 ```json
@@ -516,8 +516,16 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
       },
       "type": "text",
       "content": "Latest post content",
+      "hashtags": ["example", "feed"],
+      "reactions": {
+        "love": 3,
+        "laugh": 2
+      },
+      "userReaction": "love",
+      "commentCount": 4,
       "likeCount": 5,
       "isLiked": true,
+      "isBookmarked": false,
       "createdAt": "2023-09-06T10:30:00.000Z"
     }
   ],
@@ -531,16 +539,20 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
 - ✅ Feed retrieval with post count and pagination info
 - ❌ Feed retrieval failures
 
+**Performance Notes**:
+- Bookmark status is included in bulk feed response to avoid N+1 queries
+- Only shows bookmark status for other users' posts (own posts show `isBookmarked: false`)
+
 ---
 
 ### GET /feed/reels
-**Purpose**: Get paginated reels feed (image/GIF posts only) with like information  
-**Business Logic**: Filters posts by type (image/gif), sorted by newest, includes like counts and user like status  
-**Authentication**: None required (userId optional for like status)
+**Purpose**: Get paginated reels feed (image/GIF posts only) with like information and bookmark status  
+**Business Logic**: Filters posts by type (image/gif), sorted by newest, includes like counts, user like status, and bookmark status  
+**Authentication**: None required (userId optional for like status and bookmark status)
 
 **Query Parameters**:
 - `page`: Page number (default: 1)
-- `userId`: User ID (optional, for checking like status on posts)
+- `userId`: User ID (optional, for checking like status and bookmark status on posts)
 
 **Response (200 OK)**: Same structure as home feed, but filtered for visual content
 
@@ -548,6 +560,28 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
 - 🎬 Reels feed request with page number and userId
 - ✅ Reels feed retrieval with post count
 - ❌ Feed retrieval failures
+
+---
+
+### GET /feed/explore
+**Purpose**: Get paginated explore feed with engagement-based ranking, like information, and bookmark status  
+**Business Logic**: Returns posts with engagement-based sorting (currently chronological), includes like counts, user like status, and bookmark status  
+**Authentication**: None required (userId optional for like status and bookmark status)
+
+**Query Parameters**:
+- `page`: Page number (default: 1)
+- `userId`: User ID (optional, for checking like status and bookmark status on posts)
+
+**Response (200 OK)**: Same structure as home feed with engagement-based ordering
+
+**Console Logs**:
+- 🔍 Explore feed request with page number and userId
+- ✅ Explore feed retrieval with post count
+- ❌ Feed retrieval failures
+
+**Performance Notes**:
+- Currently uses chronological sorting (engagement algorithm to be implemented)
+- Bookmark status included in bulk response for optimal performance
 
 ---
 
@@ -757,8 +791,8 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
 ---
 
 ### POST /posts/:id/save
-**Purpose**: Save a post (Mock Implementation)  
-**Business Logic**: Currently returns success message, actual save functionality to be implemented  
+**Purpose**: Toggle bookmark on a post (bookmark/unbookmark functionality)  
+**Business Logic**: Creates or removes bookmark based on current state, prevents users from bookmarking their own posts, maintains one bookmark per user per post  
 **Authentication**: Requires userId and email in request body
 
 **Path Parameters**:
@@ -772,17 +806,121 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
 }
 ```
 
-**Response (201 Created)**:
+**Response for Bookmark (201 Created)**:
 ```json
 {
-  "message": "Post saved successfully"
+  "message": "Post bookmarked successfully",
+  "isBookmarked": true
+}
+```
+
+**Response for Unbookmark (201 Created)**:
+```json
+{
+  "message": "Post removed from bookmarks",
+  "isBookmarked": false
+}
+```
+
+**Error Response (400 Bad Request)**:
+```json
+{
+  "message": "You cannot bookmark your own posts",
+  "error": "Bad Request",
+  "statusCode": 400
+}
+```
+
+**Error Response (404 Not Found)**:
+```json
+{
+  "message": "Post not found",
+  "error": "Not Found",
+  "statusCode": 404
 }
 ```
 
 **Console Logs**:
-- 💾 Post save attempt
-- ✅ Save success
-- ❌ Save failures
+- 💾 Post bookmark toggle attempt
+- ✅ Bookmark toggle success with new state
+- ❌ Bookmark toggle failures
+
+**Business Rules**:
+- Users cannot bookmark their own posts
+- One bookmark per user per post (toggle functionality)
+- Bookmarks are automatically removed if the original post is deleted
+
+---
+
+### GET /posts/user/:userId/bookmarks
+**Purpose**: Get all bookmarked posts for a specific user  
+**Business Logic**: Returns all posts bookmarked by the user with full post data, reactions, and comment counts  
+**Authentication**: None required (public endpoint)
+
+**Path Parameters**:
+- `userId`: User ID (UUID)
+
+**Response (200 OK)**:
+```json
+{
+  "data": [
+    {
+      "_id": "60f7b3b3b3b3b3b3b3b3b3b3",
+      "userId": {
+        "_id": "60f7b3b3b3b3b3b3b3b3b3b4",
+        "userId": "550e8400-e29b-41d4-a716-446655440001",
+        "username": "postauthor",
+        "profilePhotoUrl": null
+      },
+      "email": "author@example.com",
+      "type": "text",
+      "content": "This is a bookmarked post",
+      "hashtags": ["example", "bookmark"],
+      "reactions": {
+        "love": 5,
+        "laugh": 2
+      },
+      "userReaction": "love",
+      "commentCount": 3,
+      "likeCount": 7,
+      "isLiked": true,
+      "bookmarkedAt": "2024-01-15T10:30:00.000Z",
+      "createdAt": "2024-01-15T09:00:00.000Z",
+      "updatedAt": "2024-01-15T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+**Console Logs**:
+- 🔖 User bookmarks fetch attempt
+- ✅ Bookmarks retrieved with count
+- ❌ Bookmark retrieval failures
+
+---
+
+### GET /posts/:id/bookmark-status
+**Purpose**: Check if a specific post is bookmarked by a user  
+**Business Logic**: Returns bookmark status for a specific post and user combination  
+**Authentication**: None required
+
+**Path Parameters**:
+- `id`: Post ID (ObjectId)
+
+**Query Parameters**:
+- `userId`: User ID (UUID, required)
+
+**Response (200 OK)**:
+```json
+{
+  "isBookmarked": true
+}
+```
+
+**Console Logs**:
+- 🔖 Bookmark status check
+- ✅ Bookmark status retrieved
+- ❌ Bookmark status check failures
 
 ---
 
@@ -1195,7 +1333,9 @@ All API endpoints include comprehensive console logging with:
 | POST | `/posts/:id/comment` | Yes | Add comment |
 | POST | `/posts/:id/comment/:commentId/reply` | Yes | Reply to comment |
 | POST | `/posts/:id/pin` | Yes | Pin post (mock) |
-| POST | `/posts/:id/save` | Yes | Save post (mock) |
+| POST | `/posts/:id/save` | Yes | Toggle bookmark on post |
+| GET | `/posts/user/:userId/bookmarks` | No | Get user's bookmarked posts |
+| GET | `/posts/:id/bookmark-status` | No | Check bookmark status |
 | GET | `/posts/:id/comments` | No | Get post comments |
 | POST | `/posts/:id/react` | Yes | Add reaction |
 | GET | `/posts/:id/reactions` | No | Get reaction counts |
