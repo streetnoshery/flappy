@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Share, Bookmark, MoreHorizontal } from 'lucide-react';
-import { interactionsAPI, reactionsAPI } from '../services/api';
+import { Heart, Share, Bookmark, MoreHorizontal, Trash2 } from 'lucide-react';
+import { interactionsAPI, reactionsAPI, postsAPI } from '../services/api';
 import { useMutation, useQueryClient, useQuery } from 'react-query';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 const PostCard = ({ post }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [userReaction, setUserReaction] = useState(null);
@@ -21,6 +22,9 @@ const PostCard = ({ post }) => {
 
   // Check if this is user's own post
   const isOwnPost = user?.userId === post.userId?.userId;
+  
+  // Check if user can delete this post (admin or owner)
+  const canDelete = post.canDelete || false;
 
   // Initialize state from post data
   useEffect(() => {
@@ -29,6 +33,20 @@ const PostCard = ({ post }) => {
     setUserReaction(post.userReaction || null);
     setIsBookmarked(post.isBookmarked || false);
   }, [post]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showMenu && !event.target.closest('.menu-container')) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
 
   const likeMutation = useMutation(
     () => interactionsAPI.likePost(post._id),
@@ -100,6 +118,29 @@ const PostCard = ({ post }) => {
     }
   );
 
+  const deleteMutation = useMutation(
+    () => postsAPI.deletePost(post._id),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('homeFeed');
+        queryClient.invalidateQueries('exploreFeed');
+        queryClient.invalidateQueries(['userPosts', user?.userId]);
+        toast.success('Post deleted successfully!');
+        setShowMenu(false);
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to delete post');
+        setShowMenu(false);
+      }
+    }
+  );
+
+  const handleDeletePost = () => {
+    if (window.confirm('Are you sure you want to delete this post?')) {
+      deleteMutation.mutate();
+    }
+  };
+
   const reactions = ['love', 'laugh', 'wow', 'sad', 'angry'];
   const reactionEmojis = {
     love: '😍',
@@ -139,9 +180,34 @@ const PostCard = ({ post }) => {
             </p>
           </div>
         </div>
-        <button className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full">
-          <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-        </button>
+        <div className="relative menu-container">
+          <button 
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full"
+          >
+            <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+          </button>
+          
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
+              {canDelete && (
+                <button
+                  onClick={handleDeletePost}
+                  disabled={deleteMutation.isLoading}
+                  className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center space-x-2 text-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>{deleteMutation.isLoading ? 'Deleting...' : 'Delete'}</span>
+                </button>
+              )}
+              {!canDelete && (
+                <div className="px-4 py-2 text-gray-400 text-sm">
+                  No actions available
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Post Content */}

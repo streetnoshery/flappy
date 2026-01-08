@@ -30,6 +30,13 @@ export class FeedService {
       userId
     });
     
+    // Get current user's role if userId provided
+    let currentUserRole = null;
+    if (userId) {
+      const currentUser = await this.userModel.findOne({ userId }, 'role').lean();
+      currentUserRole = currentUser?.role || 'user';
+    }
+    
     const posts = await this.postModel
       .find()
       .sort({ createdAt: -1 })
@@ -76,6 +83,9 @@ export class FeedService {
           isBookmarked = !!bookmark;
         }
         
+        // Determine if current user can delete this post
+        const canDelete = userId && (currentUserRole === 'admin' || post.userId === userId);
+        
         return {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
@@ -83,6 +93,7 @@ export class FeedService {
           userReaction,
           commentCount,
           isBookmarked,
+          canDelete,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
           isLiked: userReaction === 'love' // Heart is filled if user reacted with love
@@ -96,6 +107,7 @@ export class FeedService {
       page,
       postsReturned: posts.length,
       hasMore,
+      currentUserRole,
       oldestPostDate: posts[posts.length - 1]?.createdAt,
       newestPostDate: posts[0]?.createdAt
     });
@@ -118,6 +130,13 @@ export class FeedService {
       filterTypes: ['gif', 'image'],
       userId
     });
+    
+    // Get current user's role if userId provided
+    let currentUserRole = null;
+    if (userId) {
+      const currentUser = await this.userModel.findOne({ userId }, 'role').lean();
+      currentUserRole = currentUser?.role || 'user';
+    }
     
     const posts = await this.postModel
       .find({ type: { $in: ['gif', 'image'] } })
@@ -165,6 +184,9 @@ export class FeedService {
           isBookmarked = !!bookmark;
         }
         
+        // Determine if current user can delete this post
+        const canDelete = userId && (currentUserRole === 'admin' || post.userId === userId);
+        
         return {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
@@ -172,6 +194,7 @@ export class FeedService {
           userReaction,
           commentCount,
           isBookmarked,
+          canDelete,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
           isLiked: userReaction === 'love' // Heart is filled if user reacted with love
@@ -185,6 +208,7 @@ export class FeedService {
       page,
       postsReturned: posts.length,
       hasMore,
+      currentUserRole,
       postTypes: posts.map(p => p.type)
     });
     
@@ -206,6 +230,13 @@ export class FeedService {
       note: 'Currently using chronological sorting',
       userId
     });
+    
+    // Get current user's role if userId provided
+    let currentUserRole = null;
+    if (userId) {
+      const currentUser = await this.userModel.findOne({ userId }, 'role').lean();
+      currentUserRole = currentUser?.role || 'user';
+    }
     
     // Mock engagement calculation - implement actual engagement logic
     const posts = await this.postModel
@@ -254,6 +285,9 @@ export class FeedService {
           isBookmarked = !!bookmark;
         }
         
+        // Determine if current user can delete this post
+        const canDelete = userId && (currentUserRole === 'admin' || post.userId === userId);
+        
         return {
           ...post,
           userId: user || { userId: post.userId, username: 'Unknown User', profilePhotoUrl: null },
@@ -261,6 +295,7 @@ export class FeedService {
           userReaction,
           commentCount,
           isBookmarked,
+          canDelete,
           // Keep like count for backward compatibility (sum of all reactions)
           likeCount: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0),
           isLiked: userReaction === 'love' // Heart is filled if user reacted with love
@@ -274,6 +309,7 @@ export class FeedService {
       page,
       postsReturned: posts.length,
       hasMore,
+      currentUserRole,
       engagementLogic: 'MOCK - using chronological order'
     });
     

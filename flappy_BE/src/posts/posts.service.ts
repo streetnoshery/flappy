@@ -141,11 +141,25 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
     
-    if (post.userId !== userId) {
+    // Get user to check role
+    const user = await this.userModel.findOne({ userId });
+    if (!user) {
+      console.log('❌ [POSTS_SERVICE] User not found for deletion request', { userId });
+      throw new NotFoundException('User not found');
+    }
+    
+    // Allow deletion if user is admin or owns the post
+    const isAdmin = user.role === 'admin';
+    const isOwner = post.userId === userId;
+    
+    if (!isAdmin && !isOwner) {
       console.log('❌ [POSTS_SERVICE] Unauthorized post deletion attempt', {
         postId: id,
         postOwnerId: post.userId,
-        requestUserId: userId
+        requestUserId: userId,
+        userRole: user.role,
+        isAdmin,
+        isOwner
       });
       throw new ForbiddenException('You can only delete your own posts');
     }
@@ -153,7 +167,9 @@ export class PostsService {
     await this.postModel.findByIdAndDelete(id);
     console.log('✅ [POSTS_SERVICE] Post deleted successfully', {
       postId: id,
-      userId
+      userId,
+      userRole: user.role,
+      deletedByAdmin: isAdmin && !isOwner
     });
     
     return { message: 'Post deleted successfully' };

@@ -11,6 +11,36 @@ http://localhost:3000
 ## Authentication
 The API no longer uses JWT tokens. Instead, all protected endpoints require `userId` and `email` to be included in the request body for user identification and authorization.
 
+## Role-Based Access Control
+
+### User Roles
+The platform supports two user roles:
+- **user** (default): Standard user with basic permissions
+- **admin**: Administrative user with elevated privileges
+
+### Role Assignment
+- All newly registered users are assigned the `role: "user"` by default
+- Admin privileges must be assigned manually using the admin script:
+  ```bash
+  node scripts/make-admin.js <email>
+  ```
+
+### Role-Based Permissions
+
+#### Post Management
+- **Normal Users**: Can only delete their own posts
+- **Admin Users**: Can delete any post on the platform
+
+#### API Responses
+- All authentication endpoints (signup/login) return the user's role in the response
+- Feed endpoints include a `canDelete` field for each post indicating whether the current user can delete that specific post
+- Frontend components use this information to conditionally show/hide delete buttons
+
+#### Security Enforcement
+- Role-based restrictions are enforced at the backend level
+- Delete post requests from non-admin users attempting to delete others' posts will be rejected with a 403 Forbidden error
+- UI restrictions are supplemented by server-side validation for security
+
 ---
 
 ## 🔐 Authentication Module
@@ -45,7 +75,8 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
   "user": {
     "userId": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
-    "username": "johndoe"
+    "username": "johndoe",
+    "role": "user"
   }
 }
 ```
@@ -81,7 +112,8 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
   "user": {
     "userId": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
-    "username": "johndoe"
+    "username": "johndoe",
+    "role": "user"
   }
 }
 ```
@@ -526,6 +558,7 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
       "likeCount": 5,
       "isLiked": true,
       "isBookmarked": false,
+      "canDelete": true,
       "createdAt": "2023-09-06T10:30:00.000Z"
     }
   ],
@@ -542,6 +575,10 @@ The API no longer uses JWT tokens. Instead, all protected endpoints require `use
 **Performance Notes**:
 - Bookmark status is included in bulk feed response to avoid N+1 queries
 - Only shows bookmark status for other users' posts (own posts show `isBookmarked: false`)
+- `canDelete` field indicates whether the current user can delete the post (true for post owners and admin users)
+
+**Field Descriptions**:
+- `canDelete`: Boolean indicating if the current user can delete this post (based on ownership or admin role)
 
 ---
 
