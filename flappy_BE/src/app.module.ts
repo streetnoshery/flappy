@@ -16,7 +16,7 @@ import { FeatureFlagsModule } from './common/feature-flags.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/flappy'),
+    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb+srv://streetnoshery:Sumit%40Godwan%401062@streetnoshery.g7ufm.mongodb.net/flappy?retryWrites=true&w=majority'),
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 10,
