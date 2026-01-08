@@ -12,8 +12,15 @@ async function bootstrap() {
   }));
   
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: [
+      'http://localhost:3000',
+      'https://flappy.co.in',
+      'http://flappy.co.in',
+      process.env.FRONTEND_URL
+    ].filter(Boolean),
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
   });
   
   const port = process.env.PORT || 3001;
