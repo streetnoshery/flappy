@@ -1,11 +1,14 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Compass, PlusSquare, User, Search, Bookmark, X } from 'lucide-react';
+import { Home, Compass, PlusSquare, User, Search, Bookmark, X, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const { user } = useAuth();
   const location = useLocation();
+
+  // Debug: Log user object to help troubleshoot
+  console.log('🔍 [SIDEBAR] Current user object:', user);
 
   const menuItems = [
     { icon: Home, label: 'Home', path: '/' },
@@ -13,8 +16,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { icon: Compass, label: 'Explore', path: '/explore' },
     { icon: PlusSquare, label: 'Create', path: '/create' },
     { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
-    { icon: User, label: 'Profile', path: `/profile/${user?.id}` },
+    { icon: User, label: 'Profile', path: `/profile/${user?.userId}` },
   ];
+
+  // Add admin panel for admin users
+  if (user?.role === 'admin') {
+    menuItems.push({ icon: Shield, label: 'Admin Panel', path: '/admin' });
+  }
 
   const handleLinkClick = () => {
     // Close sidebar on mobile when a link is clicked

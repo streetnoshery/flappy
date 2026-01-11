@@ -1,10 +1,11 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { User } from '../users/schemas/user.schema';
-import { SignupDto, LoginDto, VerifyOtpDto } from './dto/auth.dto';
+import { SignupDto, LoginDto, VerifyOtpDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -141,5 +142,92 @@ export class AuthService {
     });
     
     return { message: 'OTP verified successfully' };
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const { username } = forgotPasswordDto;
+    
+    console.log('🔐 [AUTH_SERVICE] Starting forgot password process', {
+      username
+    });
+    
+    // Find user by username
+    const user = await this.userModel.findOne({ username });
+    
+    if (!user) {
+      console.log('❌ [AUTH_SERVICE] Forgot password failed - user not found', {
+        username
+      });
+      throw new NotFoundException('User not found');
+    }
+    
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    
+    // Save reset token to user
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpiry;
+    await user.save();
+    
+    console.log('✅ [AUTH_SERVICE] Reset token generated successfully', {
+      username,
+      tokenExpiry: resetTokenExpiry
+    });
+    
+    // In a real application, you would send this token via email
+    // For now, we'll return it in the response (NOT recommended for production)
+    return {
+      message: 'Password reset token generated successfully',
+      resetToken, // Remove this in production - send via email instead
+      expiresAt: resetTokenExpiry,
+      instructions: 'Use this token to reset your password. In production, this would be sent via email.'
+    };
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { username, resetToken, newPassword } = resetPasswordDto;
+    
+    console.log('🔐 [AUTH_SERVICE] Starting password reset process', {
+      username
+    });
+    
+    // Find user by username and valid reset token
+    const user = await this.userModel.findOne({
+      username,
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: { $gt: new Date() }
+    });
+    
+    if (!user) {
+      console.log('❌ [AUTH_SERVICE] Password reset failed - invalid or expired token', {
+        username
+      });
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+    
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    
+    // Update user password and clear reset token
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    
+    console.log('✅ [AUTH_SERVICE] Password reset successfully', {
+      username,
+      userId: user.userId
+    });
+    
+    return {
+      message: 'Password reset successfully',
+      user: {
+        userId: user.userId,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    };
   }
 }

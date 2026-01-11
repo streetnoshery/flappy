@@ -5,6 +5,7 @@ import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
+import ForgotPassword from './pages/auth/ForgotPassword';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
 import CreatePost from './pages/CreatePost';
@@ -37,6 +38,11 @@ function App() {
             <Route path="/signup" element={
               <PublicRoute>
                 <Signup />
+              </PublicRoute>
+            } />
+            <Route path="/forgot-password" element={
+              <PublicRoute>
+                <ForgotPassword />
               </PublicRoute>
             } />
             <Route path="/" element={

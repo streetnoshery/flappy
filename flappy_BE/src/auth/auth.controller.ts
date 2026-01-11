@@ -1,6 +1,6 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SignupDto, LoginDto, VerifyOtpDto } from './dto/auth.dto';
+import { SignupDto, LoginDto, VerifyOtpDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -76,6 +76,53 @@ export class AuthController {
       console.error('❌ [AUTH] POST /auth/otp/verify - OTP verification failed', {
         error: error.message,
         phone: verifyOtpDto.phone
+      });
+      throw error;
+    }
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    console.log('🔐 [AUTH] POST /auth/forgot-password - Forgot password request', {
+      username: forgotPasswordDto.username,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const result = await this.authService.forgotPassword(forgotPasswordDto);
+      console.log('✅ [AUTH] POST /auth/forgot-password - Reset token generated', {
+        username: forgotPasswordDto.username
+      });
+      return result;
+    } catch (error) {
+      console.error('❌ [AUTH] POST /auth/forgot-password - Failed to generate reset token', {
+        error: error.message,
+        username: forgotPasswordDto.username
+      });
+      throw error;
+    }
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    console.log('🔐 [AUTH] POST /auth/reset-password - Password reset attempt', {
+      username: resetPasswordDto.username,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const result = await this.authService.resetPassword(resetPasswordDto);
+      console.log('✅ [AUTH] POST /auth/reset-password - Password reset successful', {
+        username: resetPasswordDto.username,
+        userId: result.user?.userId
+      });
+      return result;
+    } catch (error) {
+      console.error('❌ [AUTH] POST /auth/reset-password - Password reset failed', {
+        error: error.message,
+        username: resetPasswordDto.username
       });
       throw error;
     }

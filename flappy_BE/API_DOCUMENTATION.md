@@ -156,6 +156,87 @@ The platform supports two user roles:
 
 ---
 
+### POST /auth/forgot-password
+**Purpose**: Generate password reset token for user  
+**Business Logic**: Finds user by username and generates a secure reset token with 15-minute expiry  
+**Authentication**: None required
+
+**Request Body**:
+```json
+{
+  "username": "johndoe"
+}
+```
+
+**Validation Rules**:
+- `username`: Minimum 3 characters (required)
+
+**Response (200 OK)**:
+```json
+{
+  "message": "Password reset token generated successfully",
+  "resetToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6",
+  "expiresAt": "2023-09-06T11:00:00.000Z",
+  "instructions": "Use this token to reset your password. In production, this would be sent via email."
+}
+```
+
+**Console Logs**:
+- 🔐 Forgot password request with username
+- ✅ Reset token generated successfully
+- ❌ User not found errors
+
+**Security Notes**:
+- Reset tokens expire after 15 minutes
+- In production, tokens should be sent via email, not returned in response
+- Tokens are cryptographically secure (32 random bytes)
+
+---
+
+### POST /auth/reset-password
+**Purpose**: Reset user password using reset token  
+**Business Logic**: Validates reset token and updates user password  
+**Authentication**: None required
+
+**Request Body**:
+```json
+{
+  "username": "johndoe",
+  "resetToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6",
+  "newPassword": "NewSecurePass123!"
+}
+```
+
+**Validation Rules**:
+- `username`: Minimum 3 characters (required)
+- `resetToken`: Valid reset token (required)
+- `newPassword`: Same password strength requirements as signup (required)
+
+**Response (200 OK)**:
+```json
+{
+  "message": "Password reset successfully",
+  "user": {
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "username": "johndoe",
+    "role": "user"
+  }
+}
+```
+
+**Console Logs**:
+- 🔐 Password reset attempt with username
+- ✅ Password reset successful
+- ❌ Invalid or expired token errors
+
+**Security Notes**:
+- Reset tokens are single-use and deleted after successful reset
+- Password is hashed with bcrypt (12 rounds)
+- User is automatically logged in after successful reset
+
+---
+
 ### POST /auth/token/refresh
 **Purpose**: Refresh expired access token using refresh token  
 **Business Logic**: Validates refresh token and generates new access token  

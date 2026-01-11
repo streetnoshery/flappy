@@ -90,13 +90,23 @@ const Login = () => {
             </button>
           </div>
 
-          <div className="text-center">
-            <span className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link to="/signup" className="font-medium text-primary-600 hover:text-primary-500">
-                Sign up
+          <div className="text-center space-y-2">
+            <div>
+              <Link 
+                to="/forgot-password" 
+                className="text-sm text-primary-600 hover:text-primary-500 font-medium"
+              >
+                Forgot your password?
               </Link>
-            </span>
+            </div>
+            <div>
+              <span className="text-sm text-gray-600">
+                Don't have an account?{' '}
+                <Link to="/signup" className="font-medium text-primary-600 hover:text-primary-500">
+                  Sign up
+                </Link>
+              </span>
+            </div>
           </div>
         </form>
       </div>

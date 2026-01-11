@@ -170,7 +170,7 @@ const PostCard = ({ post }) => {
           </div>
           <div>
             <Link
-              to={`/profile/${post.userId?._id}`}
+              to={`/profile/${post.userId?.userId}`}
               className="font-medium text-gray-900 hover:underline text-sm sm:text-base"
             >
               {post.userId?.username}
