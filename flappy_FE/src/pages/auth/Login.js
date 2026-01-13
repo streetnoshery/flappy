@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../../components/Logo';
 
 const Login = () => {
   const { login } = useAuth();
@@ -31,7 +32,8 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-6 sm:space-y-8">
-        <div>
+        <div className="text-center">
+          <Logo size="xl" variant="bird" className="justify-center mb-4" />
           <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-gray-900">
             Sign in to Flappy
           </h2>

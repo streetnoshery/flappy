@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, User, Key } from 'lucide-react';
 import { authAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import Logo from '../../components/Logo';
 
 const ForgotPassword = () => {
   const [step, setStep] = useState(1); // 1: Enter username, 2: Enter token and new password
@@ -97,10 +98,8 @@ const ForgotPassword = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center">
-            <Key className="w-6 h-6 text-white" />
-          </div>
+        <div className="flex justify-center mb-4">
+          <Logo size="lg" variant="bird" />
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           {step === 1 ? 'Forgot Password' : 'Reset Password'}

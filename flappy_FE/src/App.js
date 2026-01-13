@@ -13,6 +13,7 @@ import PostDetail from './pages/PostDetail';
 import Search from './pages/Search';
 import Explore from './pages/Explore';
 import Bookmarks from './pages/Bookmarks';
+import LogoShowcase from './pages/LogoShowcase';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -45,6 +46,7 @@ function App() {
                 <ForgotPassword />
               </PublicRoute>
             } />
+            <Route path="/logo-showcase" element={<LogoShowcase />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout />

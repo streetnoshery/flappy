@@ -4,6 +4,7 @@ import { Search, Bell, MessageCircle, User, LogOut, Menu, X } from 'lucide-react
 import { useAuth } from '../contexts/AuthContext';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
+import Logo from './Logo';
 
 const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
   const { user, logout } = useAuth();
@@ -43,8 +44,8 @@ const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             
-            <Link to="/" className="text-xl sm:text-2xl font-bold text-primary-600">
-              Flappy
+            <Link to="/" className="flex items-center">
+              <Logo size="md" variant="bird" />
             </Link>
           </div>
 
