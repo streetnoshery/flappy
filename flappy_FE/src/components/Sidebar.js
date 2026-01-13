@@ -16,7 +16,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { icon: Compass, label: 'Explore', path: '/explore' },
     { icon: PlusSquare, label: 'Create', path: '/create' },
     { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
-    { icon: User, label: 'Profile', path: `/profile/${user?.userId}` },
+    { 
+      icon: User, 
+      label: 'Profile', 
+      path: user?.userId ? `/profile/${user.userId}` : '#',
+      disabled: !user?.userId
+    },
   ];
 
   // Add admin panel for admin users
@@ -65,6 +70,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
+            const isDisabled = item.disabled;
+            
+            if (isDisabled) {
+              return (
+                <div
+                  key={item.path}
+                  className="flex items-center space-x-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-gray-400 cursor-not-allowed opacity-50"
+                  onClick={() => console.warn('⚠️ [SIDEBAR] Cannot navigate: userId is undefined')}
+                >
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <span className="text-sm sm:text-base">{item.label}</span>
+                </div>
+              );
+            }
             
             return (
               <Link

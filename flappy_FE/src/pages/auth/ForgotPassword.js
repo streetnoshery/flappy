@@ -79,8 +79,13 @@ const ForgotPassword = () => {
       
       toast.success('Password reset successfully! You can now login with your new password.');
       
+      console.log('🔍 [FORGOT_PASSWORD] Reset response:', response.data);
+      console.log('🔍 [FORGOT_PASSWORD] User object:', response.data.user);
+      
       // Optionally auto-login the user
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Force reload to ensure AuthContext picks up the new user data
       window.location.href = '/';
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to reset password');

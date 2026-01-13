@@ -1,17 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Bell, MessageCircle, User, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import LogoutConfirmModal from './LogoutConfirmModal';
 
 const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
   const { user, logout } = useAuth();
   const { isFeatureEnabled } = useFeatureFlags();
   const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const handleLogout = () => {
+  // Debug: Log user object to help troubleshoot
+  console.log('🔍 [NAVBAR] Current user object:', user);
+  console.log('🔍 [NAVBAR] Profile URL will be:', `/profile/${user?.userId}`);
+
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = () => {
     logout();
+    setShowLogoutModal(false);
     navigate('/login');
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
   };
 
   return (
@@ -72,15 +87,21 @@ const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
             
             {/* Profile - always visible */}
             <Link
-              to={`/profile/${user?.id}`}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full"
+              to={user?.userId ? `/profile/${user.userId}` : '#'}
+              className={`p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full ${!user?.userId ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => {
+                if (!user?.userId) {
+                  e.preventDefault();
+                  console.warn('⚠️ [NAVBAR] Cannot navigate to profile: userId is undefined');
+                }
+              }}
             >
               <User className="w-5 h-5 sm:w-6 sm:h-6" />
             </Link>
             
             {/* Logout - always visible */}
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full"
             >
               <LogOut className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -88,6 +109,13 @@ const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
           </div>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onConfirm={handleLogoutConfirm}
+        onCancel={handleLogoutCancel}
+      />
     </nav>
   );
 };
