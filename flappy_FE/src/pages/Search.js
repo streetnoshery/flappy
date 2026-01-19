@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
+import { Link } from 'react-router-dom';
 import { Search as SearchIcon, User, Hash, AlertCircle } from 'lucide-react';
 import { searchAPI } from '../services/api';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
@@ -145,7 +146,11 @@ const Search = () => {
                   ) : (
                     <div className="space-y-4">
                       {users.map((user) => (
-                        <div key={user._id} className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 hover:bg-gray-50 rounded-lg">
+                        <Link
+                          key={user._id}
+                          to={`/profile/${user.userId}`}
+                          className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer block"
+                        >
                           <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
                             {user.profilePhotoUrl ? (
                               <img
@@ -166,7 +171,7 @@ const Search = () => {
                               <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">{user.bio}</p>
                             )}
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   )}
@@ -184,14 +189,19 @@ const Search = () => {
                       {posts.map((post) => (
                         <div key={post._id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
                           <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
-                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs sm:text-sm text-gray-600 font-medium">
-                                {post.userId?.username?.[0]?.toUpperCase()}
+                            <Link
+                              to={`/profile/${post.userId?.userId}`}
+                              className="flex items-center space-x-2 sm:space-x-3 hover:opacity-80 transition-opacity"
+                            >
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-xs sm:text-sm text-gray-600 font-medium">
+                                  {post.userId?.username?.[0]?.toUpperCase()}
+                                </span>
+                              </div>
+                              <span className="font-medium text-gray-900 text-sm sm:text-base truncate">
+                                {post.userId?.username}
                               </span>
-                            </div>
-                            <span className="font-medium text-gray-900 text-sm sm:text-base truncate">
-                              {post.userId?.username}
-                            </span>
+                            </Link>
                           </div>
                           <p className="text-gray-700 text-sm sm:text-base">{post.content}</p>
                           {post.hashtags && post.hashtags.length > 0 && (
