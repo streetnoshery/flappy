@@ -8,6 +8,7 @@ export interface FeatureFlags {
   enableReactions: boolean;
   enableNotifications: boolean;
   enableChat: boolean;
+  enableShare: boolean;
 }
 
 @Injectable()
@@ -20,6 +21,7 @@ export class FeatureFlagsService {
     enableReactions: process.env.ENABLE_REACTIONS === 'true',
     enableNotifications: process.env.ENABLE_NOTIFICATIONS === 'true',
     enableChat: process.env.ENABLE_CHAT === 'true',
+    enableShare: process.env.ENABLE_SHARE === 'true',
   };
 
   getFlags(): FeatureFlags {

@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle } from 'lucide-react';
+import { Heart, MessageCircle, Share } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import ShareModal from './ShareModal';
+import toast from 'react-hot-toast';
 
 const ProfilePostCard = ({ post }) => {
   const { user } = useAuth();
+  const { isFeatureEnabled } = useFeatureFlags();
+  const [showShareModal, setShowShareModal] = useState(false);
   
   // Check if current user has liked this post
   const isLiked = post.userReaction === 'love' || post.isLiked;
@@ -84,34 +89,61 @@ const ProfilePostCard = ({ post }) => {
       </div>
 
       {/* Stats Only (No Interactive Buttons) */}
-      <div className="flex items-center space-x-4 pt-2 border-t border-gray-100">
-        {/* Like Count */}
-        <div className="flex items-center space-x-1">
-          <Heart 
-            className={`w-4 h-4 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`}
-          />
-          <span className="text-sm text-gray-600">
-            {likeCount}
-          </span>
+      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+        <div className="flex items-center space-x-4">
+          {/* Like Count */}
+          <div className="flex items-center space-x-1">
+            <Heart 
+              className={`w-4 h-4 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`}
+            />
+            <span className="text-sm text-gray-600">
+              {likeCount}
+            </span>
+          </div>
+
+          {/* Comment Count */}
+          <div className="flex items-center space-x-1">
+            <MessageCircle className="w-4 h-4 text-gray-500" />
+            <span className="text-sm text-gray-600">
+              {commentCount}
+            </span>
+          </div>
         </div>
 
-        {/* Comment Count */}
-        <div className="flex items-center space-x-1">
-          <MessageCircle className="w-4 h-4 text-gray-500" />
-          <span className="text-sm text-gray-600">
-            {commentCount}
-          </span>
-        </div>
+        <div className="flex items-center space-x-2">
+          {/* Share Button */}
+          <button
+            onClick={() => {
+              if (isFeatureEnabled('enableShare')) {
+                setShowShareModal(true);
+              } else {
+                toast('Share feature coming soon!', {
+                  icon: '🔗',
+                  duration: 3000,
+                });
+              }
+            }}
+            className="p-1 text-gray-500 hover:text-green-600 transition-colors"
+            title="Share post"
+          >
+            <Share className="w-4 h-4" />
+          </button>
 
-        {/* Post Type Badge */}
-        {post.type && post.type !== 'text' && (
-          <div className="ml-auto">
+          {/* Post Type Badge */}
+          {post.type && post.type !== 'text' && (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
               {post.type}
             </span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        post={post}
+      />
     </div>
   );
 };

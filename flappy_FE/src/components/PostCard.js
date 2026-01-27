@@ -6,12 +6,14 @@ import { useMutation, useQueryClient, useQuery } from 'react-query';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import { useAuth } from '../contexts/AuthContext';
 import CommentSection from './CommentSection';
+import ShareModal from './ShareModal';
 import toast from 'react-hot-toast';
 
 const PostCard = ({ post }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [userReaction, setUserReaction] = useState(null);
@@ -289,10 +291,16 @@ const PostCard = ({ post }) => {
             </div>
             
             <button 
-              onClick={() => toast('Share feature coming soon!', {
-                icon: '🔗',
-                duration: 3000,
-              })}
+              onClick={() => {
+                if (isFeatureEnabled('enableShare')) {
+                  setShowShareModal(true);
+                } else {
+                  toast('Share feature coming soon!', {
+                    icon: '🔗',
+                    duration: 3000,
+                  });
+                }
+              }}
               className="flex items-center space-x-1.5 sm:space-x-2 text-gray-600 hover:text-green-600 transition-colors"
             >
               <Share className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -324,6 +332,13 @@ const PostCard = ({ post }) => {
         showComments={showComments}
         onToggleComments={() => setShowComments(!showComments)}
         maxCommentsToShow={2}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        post={post}
       />
     </div>
   );

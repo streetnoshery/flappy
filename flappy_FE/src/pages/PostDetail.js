@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from 'react-query';
+import { Share } from 'lucide-react';
 import { postsAPI } from '../services/api';
 import PostCard from '../components/PostCard';
 import CommentSection from '../components/CommentSection';
+import ShareModal from '../components/ShareModal';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import toast from 'react-hot-toast';
 
 const PostDetail = () => {
   const { postId } = useParams();
+  const { isFeatureEnabled } = useFeatureFlags();
+  const [showShareModal, setShowShareModal] = useState(false);
   
   const { data: postData, isLoading: postLoading } = useQuery(
     ['post', postId],
@@ -49,6 +55,24 @@ const PostDetail = () => {
                   </p>
                 </div>
               </div>
+              
+              {/* Share Button */}
+              <button
+                onClick={() => {
+                  if (isFeatureEnabled('enableShare')) {
+                    setShowShareModal(true);
+                  } else {
+                    toast('Share feature coming soon!', {
+                      icon: '🔗',
+                      duration: 3000,
+                    });
+                  }
+                }}
+                className="p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded-full transition-colors"
+                title="Share post"
+              >
+                <Share className="w-5 h-5" />
+              </button>
             </div>
 
             <div className="mb-4">
@@ -88,6 +112,15 @@ const PostDetail = () => {
             onToggleComments={() => {}} // No toggle on detail page
           />
         </div>
+      )}
+
+      {/* Share Modal */}
+      {post && (
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          post={post}
+        />
       )}
     </div>
   );
