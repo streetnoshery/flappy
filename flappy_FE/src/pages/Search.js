@@ -203,7 +203,7 @@ const Search = () => {
                               </span>
                             </Link>
                           </div>
-                          <p className="text-gray-700 text-sm sm:text-base">{post.content}</p>
+                          <p className="text-gray-700 text-sm sm:text-base whitespace-pre-wrap">{post.content}</p>
                           {post.hashtags && post.hashtags.length > 0 && (
                             <div className="flex flex-wrap gap-1 sm:gap-2 mt-2">
                               {post.hashtags.map((tag, index) => (

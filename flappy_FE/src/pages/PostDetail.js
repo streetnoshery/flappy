@@ -52,7 +52,7 @@ const PostDetail = () => {
             </div>
 
             <div className="mb-4">
-              <p className="text-gray-900 mb-3 leading-relaxed">{post.content}</p>
+              <p className="text-gray-900 mb-3 leading-relaxed whitespace-pre-wrap">{post.content}</p>
               
               {post.mediaUrl && (
                 <div className="mb-3">

@@ -212,7 +212,7 @@ const PostCard = ({ post }) => {
 
       {/* Post Content */}
       <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-        <p className="text-gray-900 mb-3 text-sm sm:text-base leading-relaxed">{post.content}</p>
+        <p className="text-gray-900 mb-3 text-sm sm:text-base leading-relaxed whitespace-pre-wrap">{post.content}</p>
         
         {post.mediaUrl && (
           <div className="mb-3">
