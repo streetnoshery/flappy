@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { Mail, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import AuthLayout from '../../components/auth/AuthLayout';
+import AuthInput from '../../components/auth/AuthInput';
+import AuthButton from '../../components/auth/AuthButton';
 import Logo from '../../components/Logo';
 
 const Login = () => {
@@ -12,110 +16,82 @@ const Login = () => {
   const { register, handleSubmit, formState: { errors }, watch } = useForm();
 
   const watchedFields = watch(['emailOrPhone', 'password']);
-  const isFormEmpty = watchedFields.some(field => !field || field.trim() === '');
+  const isFormEmpty = watchedFields.some(f => !f || f.trim() === '');
 
   const onSubmit = async (data) => {
     setLoading(true);
     try {
       await login(data);
-      toast.success('Login successful!');
+      toast.success('Welcome back!');
       navigate('/');
     } catch (error) {
-      const errorMessage = error.response?.data?.message;
-      if (Array.isArray(errorMessage)) {
-        errorMessage.forEach(msg => toast.error(msg));
-      } else {
-        toast.error(errorMessage || 'Login failed');
-      }
+      const msg = error.response?.data?.message;
+      Array.isArray(msg) ? msg.forEach(m => toast.error(m)) : toast.error(msg || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-6 sm:space-y-8">
-        <div className="text-center">
-          <Logo size="xl" variant="bird" className="justify-center mb-4" />
-          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-gray-900">
-            Sign in to Flappy
-          </h2>
-        </div>
-        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="emailOrPhone" className="block text-sm font-medium text-gray-700">
-                Email or Phone *
-              </label>
-              <input
-                {...register('emailOrPhone', { 
-                  required: 'Email or phone is required',
-                  minLength: {
-                    value: 1,
-                    message: 'Email or phone cannot be empty'
-                  }
-                })}
-                type="text"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base"
-                placeholder="Enter your email or 10-digit phone number"
-              />
-              {errors.emailOrPhone && (
-                <p className="mt-1 text-sm text-red-600">{errors.emailOrPhone.message}</p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password *
-              </label>
-              <input
-                {...register('password', { 
-                  required: 'Password is required',
-                  minLength: {
-                    value: 1,
-                    message: 'Password cannot be empty'
-                  }
-                })}
-                type="password"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base"
-                placeholder="Enter your password"
-              />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading || isFormEmpty}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
-
-          <div className="text-center space-y-2">
-            <div>
-              <Link 
-                to="/forgot-password" 
-                className="text-sm text-primary-600 hover:text-primary-500 font-medium"
-              >
-                Forgot your password?
-              </Link>
-            </div>
-            <div>
-              <span className="text-sm text-gray-600">
-                Don't have an account?{' '}
-                <Link to="/signup" className="font-medium text-primary-600 hover:text-primary-500">
-                  Sign up
-                </Link>
-              </span>
-            </div>
-          </div>
-        </form>
+    <AuthLayout>
+      {/* Header */}
+      <div className="text-center mb-8">
+        <Logo size="lg" variant="bird" className="justify-center mb-5" />
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back</h1>
+        <p className="text-sm text-slate-500 mt-1">Sign in to your Flappy account</p>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+        <AuthInput
+          label="Email or Phone"
+          icon={Mail}
+          type="text"
+          placeholder="you@example.com or 9876543210"
+          error={errors.emailOrPhone?.message}
+          {...register('emailOrPhone', { required: 'Email or phone is required' })}
+        />
+
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-sm font-medium text-slate-700">Password</label>
+            <Link
+              to="/forgot-password"
+              className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+            >
+              Forgot password?
+            </Link>
+          </div>
+          <AuthInput
+            icon={Lock}
+            type="password"
+            placeholder="Enter your password"
+            error={errors.password?.message}
+            {...register('password', { required: 'Password is required' })}
+          />
+        </div>
+
+        <div className="pt-1">
+          <AuthButton type="submit" loading={loading} disabled={isFormEmpty}>
+            {loading ? 'Signing in…' : 'Sign in'}
+          </AuthButton>
+        </div>
+      </form>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 my-6">
+        <div className="flex-1 h-px bg-slate-200" />
+        <span className="text-xs text-slate-400 font-medium">OR</span>
+        <div className="flex-1 h-px bg-slate-200" />
+      </div>
+
+      {/* Footer */}
+      <p className="text-center text-sm text-slate-500">
+        Don't have an account?{' '}
+        <Link to="/signup" className="font-semibold text-primary-600 hover:text-primary-700 transition-colors">
+          Sign up free
+        </Link>
+      </p>
+    </AuthLayout>
   );
 };
 
