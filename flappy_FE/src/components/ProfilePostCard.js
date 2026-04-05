@@ -1,150 +1,89 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Share } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { Heart, MessageCircle, Share2 } from 'lucide-react';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import ShareModal from './ShareModal';
 import toast from 'react-hot-toast';
 
+const relativeTime = (date) => {
+  const diff = (Date.now() - new Date(date)) / 1000;
+  if (diff < 60)    return 'just now';
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return new Date(date).toLocaleDateString();
+};
+
 const ProfilePostCard = ({ post }) => {
-  const { user } = useAuth();
   const { isFeatureEnabled } = useFeatureFlags();
   const [showShareModal, setShowShareModal] = useState(false);
-  
-  // Check if current user has liked this post
-  const isLiked = post.userReaction === 'love' || post.isLiked;
-  const likeCount = post.likeCount || 0;
-  const commentCount = post.commentCount || 0;
+
+  const isLiked     = post.userReaction === 'love' || post.isLiked;
+  const likeCount   = post.likeCount   || 0;
+  const commentCount= post.commentCount|| 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-      {/* Post Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-300 rounded-full flex items-center justify-center">
-            {post.userId?.profilePhotoUrl ? (
-              <img
-                src={post.userId.profilePhotoUrl}
-                alt={post.userId.username}
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
-              />
-            ) : (
-              <span className="text-xs sm:text-sm text-gray-600 font-medium">
-                {post.userId?.username?.[0]?.toUpperCase()}
-              </span>
-            )}
+    <article className="card overflow-hidden animate-fade-up hover:shadow-md transition-shadow duration-200">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+        <Link to={`/profile/${post.userId?.userId}`} className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-sm font-bold ring-2 ring-white shadow-sm overflow-hidden flex-shrink-0">
+            {post.userId?.profilePhotoUrl
+              ? <img src={post.userId.profilePhotoUrl} alt={post.userId.username} className="w-full h-full object-cover" />
+              : post.userId?.username?.[0]?.toUpperCase()
+            }
           </div>
           <div>
-            <Link
-              to={`/profile/${post.userId?.userId}`}
-              className="font-medium text-gray-900 hover:underline text-sm sm:text-base"
-            >
+            <p className="text-sm font-semibold text-slate-900 group-hover:text-primary-600 transition-colors leading-tight">
               {post.userId?.username}
-            </Link>
-            <p className="text-xs sm:text-sm text-gray-500">
-              {new Date(post.createdAt).toLocaleDateString()}
             </p>
+            <p className="text-xs text-slate-400">{relativeTime(post.createdAt)}</p>
           </div>
-        </div>
+        </Link>
       </div>
 
-      {/* Post Content */}
-      <div className="mb-3">
-        <p className="text-gray-900 text-sm sm:text-base whitespace-pre-wrap">
-          {post.content}
-        </p>
-        
-        {/* Media */}
+      {/* Content */}
+      <div className="px-4 pb-3">
+        <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+
         {post.mediaUrl && (
-          <div className="mt-3">
-            {post.type === 'image' ? (
-              <img
-                src={post.mediaUrl}
-                alt="Post content"
-                className="w-full rounded-lg max-h-96 object-cover"
-              />
-            ) : post.type === 'gif' ? (
-              <img
-                src={post.mediaUrl}
-                alt="Post GIF"
-                className="w-full rounded-lg max-h-96 object-cover"
-              />
-            ) : null}
+          <div className="mt-3 rounded-xl overflow-hidden bg-slate-100">
+            <img src={post.mediaUrl} alt="Post media" className="w-full max-h-80 object-cover" />
           </div>
         )}
 
-        {/* Hashtags */}
-        {post.hashtags && post.hashtags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {post.hashtags.map((tag, index) => (
-              <span
-                key={index}
-                className="text-primary-600 text-xs sm:text-sm hover:underline cursor-pointer"
-              >
-                #{tag}
-              </span>
+        {post.hashtags?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2.5">
+            {post.hashtags.map((tag, i) => (
+              <span key={i} className="chip bg-primary-50 text-primary-600"># {tag}</span>
             ))}
           </div>
         )}
       </div>
 
-      {/* Stats Only (No Interactive Buttons) */}
-      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-        <div className="flex items-center space-x-4">
-          {/* Like Count */}
-          <div className="flex items-center space-x-1">
-            <Heart 
-              className={`w-4 h-4 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`}
-            />
-            <span className="text-sm text-gray-600">
-              {likeCount}
-            </span>
+      {/* Stats bar */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-50">
+        <div className="flex items-center gap-4">
+          <div className={`flex items-center gap-1.5 text-sm ${isLiked ? 'text-red-500' : 'text-slate-500'}`}>
+            <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+            <span>{likeCount}</span>
           </div>
-
-          {/* Comment Count */}
-          <div className="flex items-center space-x-1">
-            <MessageCircle className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-600">
-              {commentCount}
-            </span>
+          <div className="flex items-center gap-1.5 text-sm text-slate-500">
+            <MessageCircle className="w-4 h-4" />
+            <span>{commentCount}</span>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          {/* Share Button */}
-          <button
-            onClick={() => {
-              if (isFeatureEnabled('enableShare')) {
-                setShowShareModal(true);
-              } else {
-                toast('Share feature coming soon!', {
-                  icon: '🔗',
-                  duration: 3000,
-                });
-              }
-            }}
-            className="p-1 text-gray-500 hover:text-green-600 transition-colors"
-            title="Share post"
-          >
-            <Share className="w-4 h-4" />
-          </button>
-
-          {/* Post Type Badge */}
-          {post.type && post.type !== 'text' && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
-              {post.type}
-            </span>
-          )}
-        </div>
+        <button
+          onClick={() => isFeatureEnabled('enableShare') ? setShowShareModal(true) : toast('Share coming soon!', { icon: '🔗' })}
+          className="action-btn text-xs"
+          aria-label="Share"
+        >
+          <Share2 className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Share Modal */}
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        post={post}
-      />
-    </div>
+      <ShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} post={post} />
+    </article>
   );
 };
 

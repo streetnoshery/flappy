@@ -1,240 +1,151 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Share, Bookmark, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Heart, Share2, Bookmark, MoreHorizontal, Trash2, MessageCircle } from 'lucide-react';
 import { interactionsAPI, reactionsAPI, postsAPI } from '../services/api';
-import { useMutation, useQueryClient, useQuery } from 'react-query';
+import { useMutation, useQueryClient } from 'react-query';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import { useAuth } from '../contexts/AuthContext';
 import CommentSection from './CommentSection';
 import ShareModal from './ShareModal';
 import toast from 'react-hot-toast';
 
+/* Relative time helper */
+const relativeTime = (date) => {
+  const diff = (Date.now() - new Date(date)) / 1000;
+  if (diff < 60)   return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400)return `${Math.floor(diff / 3600)}h`;
+  if (diff < 604800)return `${Math.floor(diff / 86400)}d`;
+  return new Date(date).toLocaleDateString();
+};
+
 const PostCard = ({ post }) => {
-  const [showReactions, setShowReactions] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+  const [showComments, setShowComments]     = useState(false);
+  const [showMenu, setShowMenu]             = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [userReaction, setUserReaction] = useState(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isLiked, setIsLiked]               = useState(false);
+  const [likeCount, setLikeCount]           = useState(0);
+  const [isBookmarked, setIsBookmarked]     = useState(false);
+  const [likeAnim, setLikeAnim]             = useState(false);
+
   const queryClient = useQueryClient();
   const { isFeatureEnabled } = useFeatureFlags();
   const { user } = useAuth();
 
-  // Check if this is user's own post
   const isOwnPost = user?.userId === post.userId?.userId;
-  
-  // Check if user can delete this post (admin or owner)
   const canDelete = post.canDelete || false;
 
-  // Initialize state from post data
   useEffect(() => {
     setIsLiked(post.isLiked || false);
     setLikeCount(post.likeCount || 0);
-    setUserReaction(post.userReaction || null);
     setIsBookmarked(post.isBookmarked || false);
   }, [post]);
 
-  // Close menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showMenu && !event.target.closest('.menu-container')) {
-        setShowMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    const close = (e) => { if (showMenu && !e.target.closest('.menu-container')) setShowMenu(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
   }, [showMenu]);
 
-  const likeMutation = useMutation(
-    () => interactionsAPI.likePost(post._id),
-    {
-      onSuccess: (response) => {
-        const data = response.data;
-        
-        if (data && typeof data === 'object') {
-          const newIsLiked = data.isReacted === true && data.reactionType === 'love';
-          const newUserReaction = data.isReacted ? data.reactionType : null;
-          const newLikeCount = data.reactionCounts ? 
-            Object.values(data.reactionCounts).reduce((sum, count) => sum + count, 0) : 0;
-          
-          setIsLiked(newIsLiked);
-          setUserReaction(newUserReaction);
-          setLikeCount(newLikeCount);
-          
-          queryClient.invalidateQueries('homeFeed');
-          toast.success(newIsLiked ? 'Post liked!' : 'Like removed!');
-        } else {
-          console.error('Invalid response data:', data);
-          toast.error('Invalid response from server');
-        }
-      },
-      onError: (error) => {
-        console.error('Like API Error:', error);
-        toast.error('Failed to toggle like');
-      }
-    }
-  );
-
-  const saveMutation = useMutation(
-    () => interactionsAPI.savePost(post._id),
-    {
-      onSuccess: (response) => {
-        const data = response.data;
-        setIsBookmarked(data.isBookmarked);
+  const likeMutation = useMutation(() => interactionsAPI.likePost(post._id), {
+    onSuccess: (res) => {
+      const d = res.data;
+      if (d && typeof d === 'object') {
+        const liked = d.isReacted === true && d.reactionType === 'love';
+        setIsLiked(liked);
+        setLikeCount(d.reactionCounts ? Object.values(d.reactionCounts).reduce((s, c) => s + c, 0) : 0);
+        setLikeAnim(true);
+        setTimeout(() => setLikeAnim(false), 400);
         queryClient.invalidateQueries('homeFeed');
-        queryClient.invalidateQueries('exploreFeed');
-        queryClient.invalidateQueries(['userBookmarks', user?.userId]);
-        toast.success(data.message);
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to bookmark post');
       }
-    }
-  );
+    },
+    onError: () => toast.error('Failed to toggle like'),
+  });
 
-  const reactionMutation = useMutation(
-    (type) => reactionsAPI.reactToPost(post._id, { type }),
-    {
-      onSuccess: (response) => {
-        const data = response.data;
-        if (data && typeof data === 'object') {
-          const newUserReaction = data.isReacted ? data.reactionType : null;
-          const newIsLiked = data.isReacted && data.reactionType === 'love';
-          const newLikeCount = data.reactionCounts ? 
-            Object.values(data.reactionCounts).reduce((sum, count) => sum + count, 0) : 0;
-          
-          setUserReaction(newUserReaction);
-          setIsLiked(newIsLiked);
-          setLikeCount(newLikeCount);
-          
-          queryClient.invalidateQueries('homeFeed');
-          setShowReactions(false);
-          toast.success(data.isReacted ? 'Reaction added!' : 'Reaction removed!');
-        }
-      },
-    }
-  );
+  const saveMutation = useMutation(() => interactionsAPI.savePost(post._id), {
+    onSuccess: (res) => {
+      const d = res.data;
+      setIsBookmarked(d.isBookmarked);
+      queryClient.invalidateQueries('homeFeed');
+      queryClient.invalidateQueries('exploreFeed');
+      queryClient.invalidateQueries(['userBookmarks', user?.userId]);
+      toast.success(d.message);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to bookmark'),
+  });
 
-  const deleteMutation = useMutation(
-    () => postsAPI.deletePost(post._id),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('homeFeed');
-        queryClient.invalidateQueries('exploreFeed');
-        queryClient.invalidateQueries(['userPosts', user?.userId]);
-        toast.success('Post deleted successfully!');
-        setShowMenu(false);
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to delete post');
-        setShowMenu(false);
-      }
-    }
-  );
-
-  const handleDeletePost = () => {
-    if (window.confirm('Are you sure you want to delete this post?')) {
-      deleteMutation.mutate();
-    }
-  };
-
-  const reactions = ['love', 'laugh', 'wow', 'sad', 'angry'];
-  const reactionEmojis = {
-    love: '😍',
-    laugh: '😂',
-    wow: '😮',
-    sad: '😢',
-    angry: '😡'
-  };
+  const deleteMutation = useMutation(() => postsAPI.deletePost(post._id), {
+    onSuccess: () => {
+      queryClient.invalidateQueries('homeFeed');
+      queryClient.invalidateQueries('exploreFeed');
+      queryClient.invalidateQueries(['userPosts', user?.userId]);
+      toast.success('Post deleted');
+      setShowMenu(false);
+    },
+    onError: (err) => { toast.error(err.response?.data?.message || 'Failed to delete'); setShowMenu(false); },
+  });
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mx-2 sm:mx-0">
-      {/* Post Header */}
-      <div className="flex items-center justify-between p-3 sm:p-4">
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-300 rounded-full flex items-center justify-center">
-            {post.userId?.profilePhotoUrl ? (
-              <img
-                src={post.userId.profilePhotoUrl}
-                alt={post.userId.username}
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
-              />
-            ) : (
-              <span className="text-gray-600 font-medium text-sm sm:text-base">
-                {post.userId?.username?.[0]?.toUpperCase()}
-              </span>
-            )}
+    <article className="card overflow-hidden animate-fade-up hover:shadow-md transition-shadow duration-200">
+      {/* ── Header ─────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
+        <Link to={`/profile/${post.userId?.userId}`} className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-sm font-bold ring-2 ring-white shadow-sm flex-shrink-0 overflow-hidden">
+            {post.userId?.profilePhotoUrl
+              ? <img src={post.userId.profilePhotoUrl} alt={post.userId.username} className="w-full h-full object-cover" />
+              : post.userId?.username?.[0]?.toUpperCase()
+            }
           </div>
           <div>
-            <Link
-              to={`/profile/${post.userId?.userId}`}
-              className="font-medium text-gray-900 hover:underline text-sm sm:text-base"
-            >
+            <p className="text-sm font-semibold text-slate-900 group-hover:text-primary-600 transition-colors leading-tight">
               {post.userId?.username}
-            </Link>
-            <p className="text-xs sm:text-sm text-gray-500">
-              {new Date(post.createdAt).toLocaleDateString()}
             </p>
+            <p className="text-xs text-slate-400">{relativeTime(post.createdAt)}</p>
           </div>
-        </div>
+        </Link>
+
+        {/* Menu */}
         <div className="relative menu-container">
-          <button 
+          <button
             onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label="Post options"
           >
-            <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+            <MoreHorizontal className="w-4 h-4" />
           </button>
-          
           {showMenu && (
-            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
-              {canDelete && (
+            <div className="absolute right-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-card py-1 z-20 min-w-[140px] animate-fade-up">
+              {canDelete ? (
                 <button
-                  onClick={handleDeletePost}
+                  onClick={() => { if (window.confirm('Delete this post?')) deleteMutation.mutate(); }}
                   disabled={deleteMutation.isLoading}
-                  className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center space-x-2 text-sm"
+                  className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-50 flex items-center gap-2 text-sm transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
-                  <span>{deleteMutation.isLoading ? 'Deleting...' : 'Delete'}</span>
+                  {deleteMutation.isLoading ? 'Deleting…' : 'Delete post'}
                 </button>
-              )}
-              {!canDelete && (
-                <div className="px-4 py-2 text-gray-400 text-sm">
-                  No actions available
-                </div>
+              ) : (
+                <div className="px-4 py-2 text-slate-400 text-sm">No actions</div>
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Post Content */}
-      <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-        <p className="text-gray-900 mb-3 text-sm sm:text-base leading-relaxed whitespace-pre-wrap">{post.content}</p>
-        
-        {post.mediaUrl && (
-          <div className="mb-3">
-            {post.type === 'image' || post.type === 'gif' ? (
-              <img
-                src={post.mediaUrl}
-                alt="Post media"
-                className="w-full rounded-lg max-h-64 sm:max-h-96 object-cover"
-              />
-            ) : null}
+      {/* ── Content ────────────────────────────────── */}
+      <div className="px-4 pb-3">
+        <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+
+        {post.mediaUrl && (post.type === 'image' || post.type === 'gif') && (
+          <div className="mt-3 rounded-xl overflow-hidden bg-slate-100">
+            <img src={post.mediaUrl} alt="Post media" className="w-full max-h-80 object-cover" />
           </div>
         )}
 
-        {post.hashtags && post.hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-1 sm:gap-2 mb-3">
-            {post.hashtags.map((tag, index) => (
-              <span
-                key={index}
-                className="text-primary-600 hover:underline cursor-pointer text-xs sm:text-sm"
-              >
+        {post.hashtags?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2.5">
+            {post.hashtags.map((tag, i) => (
+              <span key={i} className="chip bg-primary-50 text-primary-600 hover:bg-primary-100 cursor-pointer transition-colors">
                 #{tag}
               </span>
             ))}
@@ -242,105 +153,64 @@ const PostCard = ({ post }) => {
         )}
       </div>
 
-      {/* Post Actions */}
-      <div className="border-t border-gray-200 px-3 sm:px-4 py-2.5 sm:py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            <div className="relative flex items-center">
-              <button
-                onClick={() => likeMutation.mutate()}
-                disabled={likeMutation.isLoading}
-                className={`flex items-center space-x-1.5 sm:space-x-2 transition-colors ${
-                  isLiked 
-                    ? 'text-red-600' 
-                    : 'text-gray-600 hover:text-red-600'
-                }`}
-              >
-                <Heart 
-                  className={`w-4 h-4 sm:w-5 sm:h-5 ${isLiked ? 'fill-current' : ''}`} 
-                />
-                <span className="text-xs sm:text-sm">
-                  {likeCount > 0 ? likeCount : 'Like'}
-                </span>
-              </button>
-              
-              {isFeatureEnabled('enableReactions') && (
-                <button
-                  onClick={() => setShowReactions(!showReactions)}
-                  className="ml-2 text-xs text-gray-500 hover:text-gray-700"
-                >
-                  React
-                </button>
-              )}
-              
-              {isFeatureEnabled('enableReactions') && showReactions && (
-                <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg p-2 flex space-x-2 z-10">
-                  {reactions.map((reaction) => (
-                    <button
-                      key={reaction}
-                      onClick={() => reactionMutation.mutate(reaction)}
-                      className={`text-lg sm:text-2xl hover:scale-110 transition-transform ${
-                        userReaction === reaction ? 'scale-110 ring-2 ring-blue-300 rounded-full' : ''
-                      }`}
-                    >
-                      {reactionEmojis[reaction]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <button 
-              onClick={() => {
-                if (isFeatureEnabled('enableShare')) {
-                  setShowShareModal(true);
-                } else {
-                  toast('Share feature coming soon!', {
-                    icon: '🔗',
-                    duration: 3000,
-                  });
-                }
-              }}
-              className="flex items-center space-x-1.5 sm:space-x-2 text-gray-600 hover:text-green-600 transition-colors"
-            >
-              <Share className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="text-xs sm:text-sm hidden sm:inline">Share</span>
-            </button>
-          </div>
-          
-          {/* Bookmark Button - Only show for other users' posts */}
-          {!isOwnPost && (
-            <button
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isLoading}
-              className={`transition-colors ${
-                isBookmarked 
-                  ? 'text-yellow-600 hover:text-yellow-700' 
-                  : 'text-gray-600 hover:text-yellow-600'
-              } ${saveMutation.isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title={isBookmarked ? 'Remove from bookmarks' : 'Add to bookmarks'}
-            >
-              <Bookmark className={`w-4 h-4 sm:w-5 sm:h-5 ${isBookmarked ? 'fill-current' : ''}`} />
-            </button>
-          )}
+      {/* ── Actions ────────────────────────────────── */}
+      <div className="flex items-center justify-between px-3 py-2 border-t border-slate-50">
+        <div className="flex items-center gap-1">
+          {/* Like */}
+          <button
+            onClick={() => likeMutation.mutate()}
+            disabled={likeMutation.isLoading}
+            className={`action-btn ${isLiked ? 'text-red-500 hover:text-red-600 hover:bg-red-50' : ''}`}
+            aria-label="Like"
+          >
+            <Heart className={`w-4 h-4 transition-all ${isLiked ? 'fill-current' : ''} ${likeAnim ? 'animate-like' : ''}`} />
+            <span>{likeCount > 0 ? likeCount : 'Like'}</span>
+          </button>
+
+          {/* Comment */}
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className="action-btn"
+            aria-label="Comment"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Comment</span>
+          </button>
+
+          {/* Share */}
+          <button
+            onClick={() => isFeatureEnabled('enableShare') ? setShowShareModal(true) : toast('Share coming soon!', { icon: '🔗' })}
+            className="action-btn"
+            aria-label="Share"
+          >
+            <Share2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Share</span>
+          </button>
         </div>
+
+        {/* Bookmark */}
+        {!isOwnPost && (
+          <button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isLoading}
+            className={`action-btn ${isBookmarked ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50' : ''}`}
+            aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+          >
+            <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+          </button>
+        )}
       </div>
 
-      {/* Comment Section */}
-      <CommentSection 
-        postId={post._id} 
+      {/* ── Comments ───────────────────────────────── */}
+      <CommentSection
+        postId={post._id}
         showComments={showComments}
         onToggleComments={() => setShowComments(!showComments)}
         maxCommentsToShow={2}
       />
 
-      {/* Share Modal */}
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        post={post}
-      />
-    </div>
+      <ShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} post={post} />
+    </article>
   );
 };
 

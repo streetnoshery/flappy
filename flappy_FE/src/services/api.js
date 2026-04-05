@@ -178,4 +178,12 @@ export const featureFlagsAPI = {
   getEnabledPostTypes: () => api.get('/feature-flags/post-types'),
 };
 
+// Reports API
+export const reportsAPI = {
+  createReport: (data) => {
+    const user = getUserData();
+    return api.post('/reports', { ...data, userId: user?.userId, email: user?.email });
+  },
+};
+
 export default api;
