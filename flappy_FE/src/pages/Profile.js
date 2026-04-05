@@ -61,17 +61,19 @@ const Profile = () => {
     <div className="max-w-2xl mx-auto space-y-4">
       {/* ── Profile header card ─────────────────────── */}
       <div className="card overflow-hidden">
-        {/* Cover */}
-        <div className="h-24 relative" style={getHeaderStyle(user?.userId)}>
-          <div className="absolute inset-0 bg-white/10" />
-        </div>
+        {/* Cover + avatar overlap — all in one relative container */}
+        <div className="relative" style={{ paddingBottom: '44px' }}>
+          {/* Cover banner */}
+          <div className="h-28" style={getHeaderStyle(user?.userId)} />
 
-        <div className="px-5 pb-5">
-          {/* Avatar sits BELOW the cover, no negative margin */}
-          <div className="flex items-start justify-between mt-3 mb-4">
-            <div className="p-1 bg-white rounded-2xl shadow-md flex-shrink-0">
+          {/* Avatar — absolute, left-aligned, straddling the cover bottom */}
+          <div
+            className="absolute left-5"
+            style={{ bottom: '0px' }}
+          >
+            <div className="p-[3px] bg-white rounded-2xl shadow-lg">
               <div
-                className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center text-white text-2xl font-bold"
+                className="w-20 h-20 rounded-xl overflow-hidden flex items-center justify-center text-white text-2xl font-bold"
                 style={user?.profilePhotoUrl ? {} : { background: getHeaderStyle(user?.userId).background }}
               >
                 {user?.profilePhotoUrl
@@ -80,26 +82,30 @@ const Profile = () => {
                 }
               </div>
             </div>
-            <div className="flex gap-2 mt-1">
-              {!isOwnProfile && (
-                <>
-                  <button
-                    className="py-1.5 px-4 text-xs rounded-xl text-white font-semibold shadow-sm hover:opacity-90 transition-opacity"
-                    style={{ background: getHeaderStyle(user?.userId).background }}
-                  >
-                    Follow
-                  </button>
-                  <button
-                    onClick={() => setShowReportModal(true)}
-                    className="p-2 rounded-xl border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"
-                    title="Report issue"
-                  >
-                    <Flag className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-            </div>
           </div>
+
+          {/* Follow / Report — bottom-right of cover */}
+          {!isOwnProfile && (
+            <div className="absolute right-4 flex gap-2" style={{ bottom: '10px' }}>
+              <button
+                className="py-1.5 px-5 text-sm rounded-xl text-white font-semibold shadow-sm hover:opacity-90 transition-opacity"
+                style={{ background: getHeaderStyle(user?.userId).background }}
+              >
+                Follow
+              </button>
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-500 transition-colors shadow-sm"
+                title="Report issue"
+              >
+                <Flag className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Name / bio / stats */}
+        <div className="px-5 pt-3 pb-5">
 
           {/* Name + bio */}
           <div className="space-y-1 mb-4">
