@@ -6,6 +6,7 @@ import { Image, FileText, Film, AlertCircle, Hash, X } from 'lucide-react';
 import { postsAPI } from '../services/api';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import { useAuth } from '../contexts/AuthContext';
+import UserAvatar from '../components/UserAvatar';
 import toast from 'react-hot-toast';
 
 const MAX_CHARS = 500;
@@ -96,9 +97,7 @@ const CreatePost = () => {
         <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-5">
           {/* Author row */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-              {user.username?.[0]?.toUpperCase()}
-            </div>
+            <UserAvatar user={user} size="md" ring />
             <div>
               <p className="text-sm font-semibold text-slate-900">{user.username}</p>
               <p className="text-xs text-slate-400">Posting publicly</p>

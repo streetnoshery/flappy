@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { MessageCircle, Reply, Send, ChevronDown } from 'lucide-react';
 import { interactionsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import UserAvatar from './UserAvatar';
 import toast from 'react-hot-toast';
 
 const relativeTime = (date) => {
@@ -14,14 +15,6 @@ const relativeTime = (date) => {
   return new Date(date).toLocaleDateString();
 };
 
-const Avatar = ({ user, size = 7 }) => (
-  <div className={`w-${size} h-${size} rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden`}>
-    {user?.profilePhotoUrl
-      ? <img src={user.profilePhotoUrl} alt={user.username} className="w-full h-full object-cover" />
-      : user?.username?.[0]?.toUpperCase() || '?'
-    }
-  </div>
-);
 
 const CommentSection = ({ postId, showComments = false, onToggleComments, maxCommentsToShow = null }) => {
   const { user } = useAuth();
@@ -105,7 +98,7 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
           {/* Input */}
           {user && (
             <div className="flex items-center gap-2">
-              <Avatar user={user} size={7} />
+              <UserAvatar user={user} size="xs" />
               <div className="flex-1 flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-2">
                 <input
                   ref={inputRef}
@@ -146,7 +139,7 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
               {visibleComments.filter(Boolean).map(comment => (
                 <div key={comment._id} className="space-y-2">
                   <div className="flex items-start gap-2">
-                    <Avatar user={comment.userId} size={7} />
+                    <UserAvatar user={comment.userId} size="xs" />
                     <div className="flex-1 min-w-0">
                       <div className="bg-slate-100 rounded-xl px-3 py-2">
                         <div className="flex items-center gap-2 mb-0.5">
@@ -165,7 +158,7 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
                       {/* Reply input */}
                       {replyingTo === comment._id && user && (
                         <div className="flex items-center gap-2 mt-2 ml-2">
-                          <Avatar user={user} size={6} />
+                          <UserAvatar user={user} size="xs" />
                           <div className="flex-1 flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-1.5">
                             <input
                               type="text"
@@ -192,7 +185,7 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
                         <div className="mt-2 ml-4 space-y-2">
                           {comment.replies.filter(Boolean).map((reply, i) => (
                             <div key={i} className="flex items-start gap-2">
-                              <Avatar user={reply.userId} size={6} />
+                              <UserAvatar user={reply.userId} size="xs" />
                               <div className="bg-slate-100 rounded-xl px-3 py-2 flex-1">
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <span className="text-xs font-semibold text-slate-800">{reply.userId?.username || 'User'}</span>

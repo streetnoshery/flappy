@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Heart, MessageCircle, Share2 } from 'lucide-react';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import ShareModal from './ShareModal';
+import UserAvatar from './UserAvatar';
+import { getChipStyle } from '../utils/profileColors';
 import toast from 'react-hot-toast';
 
 const relativeTime = (date) => {
@@ -26,12 +28,7 @@ const ProfilePostCard = ({ post }) => {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <Link to={`/profile/${post.userId?.userId}`} className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-sm font-bold ring-2 ring-white shadow-sm overflow-hidden flex-shrink-0">
-            {post.userId?.profilePhotoUrl
-              ? <img src={post.userId.profilePhotoUrl} alt={post.userId.username} className="w-full h-full object-cover" />
-              : post.userId?.username?.[0]?.toUpperCase()
-            }
-          </div>
+          <UserAvatar user={post.userId} size="sm" ring />
           <div>
             <p className="text-sm font-semibold text-slate-900 group-hover:text-primary-600 transition-colors leading-tight">
               {post.userId?.username}
@@ -54,7 +51,9 @@ const ProfilePostCard = ({ post }) => {
         {post.hashtags?.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2.5">
             {post.hashtags.map((tag, i) => (
-              <span key={i} className="chip bg-primary-50 text-primary-600"># {tag}</span>
+              <span key={i} className="chip text-xs" style={getChipStyle(post.userId?.userId)}>
+                #{tag}
+              </span>
             ))}
           </div>
         )}

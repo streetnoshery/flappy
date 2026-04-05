@@ -8,6 +8,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ProfilePostCard from '../components/ProfilePostCard';
 import ReportModal from '../components/ReportModal';
 import SkeletonCard from '../components/SkeletonCard';
+import UserAvatar from '../components/UserAvatar';
+import { getHeaderStyle, getAccentColor, getChipStyle } from '../utils/profileColors';
 
 const StatBadge = ({ value, label }) => (
   <div className="text-center">
@@ -59,22 +61,34 @@ const Profile = () => {
     <div className="max-w-2xl mx-auto space-y-4">
       {/* ── Profile header card ─────────────────────── */}
       <div className="card overflow-hidden">
-        {/* Cover gradient */}
-        <div className="h-24 bg-gradient-to-r from-primary-500 via-accent-500 to-primary-700" />
+        {/* Cover */}
+        <div className="h-24 relative" style={getHeaderStyle(user?.userId)}>
+          <div className="absolute inset-0 bg-white/10" />
+        </div>
 
         <div className="px-5 pb-5">
-          {/* Avatar row */}
-          <div className="flex items-end justify-between -mt-10 mb-4">
-            <div className="w-20 h-20 rounded-2xl ring-4 ring-white shadow-lg overflow-hidden bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-2xl font-bold">
-              {user?.profilePhotoUrl
-                ? <img src={user.profilePhotoUrl} alt={user.username} className="w-full h-full object-cover" />
-                : user?.username?.[0]?.toUpperCase()
-              }
+          {/* Avatar sits BELOW the cover, no negative margin */}
+          <div className="flex items-start justify-between mt-3 mb-4">
+            <div className="p-1 bg-white rounded-2xl shadow-md flex-shrink-0">
+              <div
+                className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center text-white text-2xl font-bold"
+                style={user?.profilePhotoUrl ? {} : { background: getHeaderStyle(user?.userId).background }}
+              >
+                {user?.profilePhotoUrl
+                  ? <img src={user.profilePhotoUrl} alt={user.username} className="w-full h-full object-cover" />
+                  : user?.username?.[0]?.toUpperCase()
+                }
+              </div>
             </div>
-            <div className="flex gap-2 mb-1">
+            <div className="flex gap-2 mt-1">
               {!isOwnProfile && (
                 <>
-                  <button className="btn-primary py-1.5 px-4 text-xs">Follow</button>
+                  <button
+                    className="py-1.5 px-4 text-xs rounded-xl text-white font-semibold shadow-sm hover:opacity-90 transition-opacity"
+                    style={{ background: getHeaderStyle(user?.userId).background }}
+                  >
+                    Follow
+                  </button>
                   <button
                     onClick={() => setShowReportModal(true)}
                     className="p-2 rounded-xl border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"
@@ -116,20 +130,23 @@ const Profile = () => {
 
       {/* ── Tabs ───────────────────────────────────── */}
       <div className="card px-2 py-1 flex items-center gap-1">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-              activeTab === id
-                ? 'bg-primary-50 text-primary-700'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            <span>{label}</span>
-          </button>
-        ))}
+        {tabs.map(({ id, label, icon: Icon }) => {
+          const isActive = activeTab === id;
+          const accentColor = getAccentColor(user?.userId);
+          return (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                isActive ? 'text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
+              style={isActive ? { background: getHeaderStyle(user?.userId).background } : {}}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Posts tab ──────────────────────────────── */}

@@ -6,6 +6,7 @@ import { feedAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import PostCard from '../components/PostCard';
 import SkeletonCard from '../components/SkeletonCard';
+import UserAvatar from '../components/UserAvatar';
 
 const tabs = [
   { id: 'for-you',   label: 'For You',   icon: Sparkles },
@@ -55,9 +56,7 @@ const Home = () => {
     <div className="max-w-xl mx-auto space-y-4">
       {/* ── Quick compose ──────────────────────────── */}
       <div className="card px-4 py-3 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-          {user?.username?.[0]?.toUpperCase()}
-        </div>
+        <UserAvatar user={user} size="sm" ring />
         <Link
           to="/create"
           className="flex-1 bg-slate-100 hover:bg-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-400 transition-colors cursor-pointer select-none"

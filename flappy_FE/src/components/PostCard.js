@@ -7,6 +7,8 @@ import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import { useAuth } from '../contexts/AuthContext';
 import CommentSection from './CommentSection';
 import ShareModal from './ShareModal';
+import UserAvatar from './UserAvatar';
+import { getChipStyle, getAccentColor } from '../utils/profileColors';
 import toast from 'react-hot-toast';
 
 /* Relative time helper */
@@ -90,12 +92,7 @@ const PostCard = ({ post }) => {
       {/* ── Header ─────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <Link to={`/profile/${post.userId?.userId}`} className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-sm font-bold ring-2 ring-white shadow-sm flex-shrink-0 overflow-hidden">
-            {post.userId?.profilePhotoUrl
-              ? <img src={post.userId.profilePhotoUrl} alt={post.userId.username} className="w-full h-full object-cover" />
-              : post.userId?.username?.[0]?.toUpperCase()
-            }
-          </div>
+          <UserAvatar user={post.userId} size="sm" ring />
           <div>
             <p className="text-sm font-semibold text-slate-900 group-hover:text-primary-600 transition-colors leading-tight">
               {post.userId?.username}
@@ -145,7 +142,8 @@ const PostCard = ({ post }) => {
         {post.hashtags?.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2.5">
             {post.hashtags.map((tag, i) => (
-              <span key={i} className="chip bg-primary-50 text-primary-600 hover:bg-primary-100 cursor-pointer transition-colors">
+              <span key={i} className="chip text-xs cursor-pointer transition-colors"
+                style={getChipStyle(post.userId?.userId)}>
                 #{tag}
               </span>
             ))}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Compass, PlusSquare, User, Search, Bookmark, X, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import UserAvatar from './UserAvatar';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const { user } = useAuth();
@@ -96,9 +97,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
               onClick={close}
               className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100 transition-colors"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                {user.username?.[0]?.toUpperCase()}
-              </div>
+              <UserAvatar user={user} size="sm" ring />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate">{user.username}</p>
                 <p className="text-xs text-slate-400 truncate">{user.email}</p>

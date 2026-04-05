@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, Bell, MessageCircle, User, LogOut, Menu, X, PlusSquare } from 'lucide-react';
+import { Search, Bell, MessageCircle, LogOut, Menu, X, PlusSquare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
 import Logo from './Logo';
+import UserAvatar from './UserAvatar';
 
 const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
   const { user, logout } = useAuth();
@@ -87,12 +88,10 @@ const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
               {/* Avatar / profile */}
               <Link
                 to={user?.userId ? `/profile/${user.userId}` : '#'}
-                className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+                className="flex items-center gap-2 p-1 rounded-xl hover:bg-slate-100 transition-colors"
                 aria-label="Profile"
               >
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white shadow-sm">
-                  {user?.username?.[0]?.toUpperCase() || <User className="w-4 h-4" />}
-                </div>
+                <UserAvatar user={user} size="sm" ring />
                 <span className="hidden md:block text-sm font-medium text-slate-700 max-w-[80px] truncate">
                   {user?.username}
                 </span>
