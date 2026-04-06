@@ -33,13 +33,19 @@ export class LoginDto {
 }
 
 export class VerifyOtpDto {
-  @IsString({ message: 'Phone number is required' })
-  @Matches(/^[0-9]{10}$/, { message: 'Phone number must be exactly 10 digits' })
-  phone: string;
+  @IsString({ message: 'Email is required' })
+  @MinLength(1, { message: 'Email cannot be empty' })
+  email: string;
 
   @IsString({ message: 'OTP is required' })
   @Matches(/^[0-9]{6}$/, { message: 'OTP must be exactly 6 digits' })
   otp: string;
+}
+
+export class ResendOtpDto {
+  @IsString({ message: 'Email is required' })
+  @MinLength(1, { message: 'Email cannot be empty' })
+  email: string;
 }
 
 export class RefreshTokenDto {

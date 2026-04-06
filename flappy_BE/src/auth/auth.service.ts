@@ -1,51 +1,54 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { User } from '../users/schemas/user.schema';
-import { SignupDto, LoginDto, VerifyOtpDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
+import {
+  SignupDto,
+  LoginDto,
+  VerifyOtpDto,
+  ResendOtpDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto/auth.dto';
+import { EmailService } from './email.service';
+import { OtpStoreService } from './otp-store.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
+    private readonly emailService: EmailService,
+    private readonly otpStore: OtpStoreService,
   ) {}
 
   async signup(signupDto: SignupDto) {
     const { email, phone, password, username } = signupDto;
-    
-    console.log('🔐 [AUTH_SERVICE] Starting user registration process', {
-      email,
-      username,
-      hasPhone: !!phone
-    });
-    
-    // Check if user exists
+
     const existingUser = await this.userModel.findOne({
-      $or: [{ email }, { phone }, { username }]
+      $or: [{ email }, { phone }, { username }],
     });
-    
+
     if (existingUser) {
-      console.log('❌ [AUTH_SERVICE] User registration failed - user already exists', {
-        email,
-        username,
-        existingField: existingUser.email === email ? 'email' : 
-                      existingUser.phone === phone ? 'phone' : 'username'
-      });
       throw new ConflictException('User already exists');
     }
 
-    // Generate unique userId
     const userId = uuidv4();
-    console.log('🆔 [AUTH_SERVICE] Generated userId', { userId });
-
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
-    console.log('🔒 [AUTH_SERVICE] Password hashed successfully');
-    
-    // Create user
+
     const user = new this.userModel({
       userId,
       email,
@@ -53,15 +56,10 @@ export class AuthService {
       username,
       password: hashedPassword,
     });
-    
+
     await user.save();
-    console.log('✅ [AUTH_SERVICE] User created in database', {
-      userId: user.userId,
-      mongoId: user._id,
-      email: user.email,
-      username: user.username
-    });
-    
+    this.logger.log(`User registered: ${username} (${email})`);
+
     return {
       message: 'User created successfully',
       user: {
@@ -74,40 +72,70 @@ export class AuthService {
     };
   }
 
+  /**
+   * Step 1: Validate credentials (email/phone + password).
+   * On success, send OTP to user's registered email.
+   * Returns masked email for the frontend to display.
+   */
   async login(loginDto: LoginDto) {
     const { emailOrPhone, password } = loginDto;
-    
-    console.log('🔐 [AUTH_SERVICE] Starting login process', {
-      emailOrPhone
-    });
-    
+
     // Find user by email or phone
     const user = await this.userModel.findOne({
-      $or: [{ email: emailOrPhone }, { phone: emailOrPhone }]
+      $or: [{ email: emailOrPhone }, { phone: emailOrPhone }],
     });
-    
+
     if (!user) {
-      console.log('❌ [AUTH_SERVICE] Login failed - user not found', {
-        emailOrPhone
-      });
       throw new UnauthorizedException('Invalid credentials');
     }
-    
+
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) {
-      console.log('❌ [AUTH_SERVICE] Login failed - invalid password', {
-        userId: user.userId,
-        email: user.email
-      });
       throw new UnauthorizedException('Invalid credentials');
     }
-    
-    console.log('✅ [AUTH_SERVICE] User authenticated successfully', {
-      userId: user.userId,
-      email: user.email,
-      username: user.username
-    });
-    
+
+    // Check rate limit before sending OTP
+    const rateLimitSeconds = this.otpStore.checkRateLimit(user.email);
+    if (rateLimitSeconds > 0) {
+      throw new HttpException(
+        `Too many OTP requests. Try again in ${rateLimitSeconds} seconds.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // Send OTP to registered email
+    const otp = await this.emailService.sendOtpViaEmail(user.email);
+    this.otpStore.storeOtp(user.email, otp);
+
+    this.logger.log(`OTP sent to ${this.maskEmail(user.email)} for user ${user.username}`);
+
+    return {
+      message: 'OTP sent to your registered email',
+      otpRequired: true,
+      email: this.maskEmail(user.email),
+      rawEmail: user.email, // needed for verify call — frontend stores temporarily
+    };
+  }
+
+  /**
+   * Step 2: Verify OTP and complete login.
+   */
+  async verifyLoginOtp(verifyOtpDto: VerifyOtpDto) {
+    const { email, otp } = verifyOtpDto;
+
+    const result = this.otpStore.verifyOtp(email, otp);
+
+    if (!result.valid) {
+      throw new UnauthorizedException(result.message);
+    }
+
+    const user = await this.userModel.findOne({ email });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    this.logger.log(`OTP verified, login complete for ${user.username}`);
+
     return {
       message: 'Login successful',
       user: {
@@ -120,106 +148,74 @@ export class AuthService {
     };
   }
 
-  async verifyOtp(verifyOtpDto: VerifyOtpDto) {
-    // Mock OTP verification - implement actual OTP logic
-    const { phone, otp } = verifyOtpDto;
-    
-    console.log('📱 [AUTH_SERVICE] Verifying OTP (MOCK)', {
-      phone,
-      otp: otp.replace(/./g, '*') // Hide OTP in logs
-    });
-    
-    if (otp !== '123456') {
-      console.log('❌ [AUTH_SERVICE] OTP verification failed', {
-        phone,
-        providedOtp: otp.replace(/./g, '*')
-      });
-      throw new UnauthorizedException('Invalid OTP');
+  /**
+   * Resend OTP to user's email (with rate limiting).
+   */
+  async resendOtp(resendOtpDto: ResendOtpDto) {
+    const { email } = resendOtpDto;
+
+    const rateLimitSeconds = this.otpStore.checkRateLimit(email);
+    if (rateLimitSeconds > 0) {
+      throw new HttpException(
+        `Too many OTP requests. Try again in ${rateLimitSeconds} seconds.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
-    
-    console.log('✅ [AUTH_SERVICE] OTP verified successfully (MOCK)', {
-      phone
-    });
-    
-    return { message: 'OTP verified successfully' };
+
+    const user = await this.userModel.findOne({ email });
+    if (!user) {
+      // Don't reveal whether user exists
+      return { message: 'If the email is registered, a new OTP has been sent.' };
+    }
+
+    const otp = await this.emailService.sendOtpViaEmail(user.email);
+    this.otpStore.storeOtp(user.email, otp);
+
+    this.logger.log(`OTP resent to ${this.maskEmail(user.email)}`);
+
+    return { message: 'A new OTP has been sent to your email.' };
   }
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
     const { username } = forgotPasswordDto;
-    
-    console.log('🔐 [AUTH_SERVICE] Starting forgot password process', {
-      username
-    });
-    
-    // Find user by username
+
     const user = await this.userModel.findOne({ username });
-    
     if (!user) {
-      console.log('❌ [AUTH_SERVICE] Forgot password failed - user not found', {
-        username
-      });
       throw new NotFoundException('User not found');
     }
-    
-    // Generate reset token
+
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-    
-    // Save reset token to user
+    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = resetTokenExpiry;
     await user.save();
-    
-    console.log('✅ [AUTH_SERVICE] Reset token generated successfully', {
-      username,
-      tokenExpiry: resetTokenExpiry
-    });
-    
-    // In a real application, you would send this token via email
-    // For now, we'll return it in the response (NOT recommended for production)
+
     return {
       message: 'Password reset token generated successfully',
-      resetToken, // Remove this in production - send via email instead
+      resetToken,
       expiresAt: resetTokenExpiry,
-      instructions: 'Use this token to reset your password. In production, this would be sent via email.'
     };
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     const { username, resetToken, newPassword } = resetPasswordDto;
-    
-    console.log('🔐 [AUTH_SERVICE] Starting password reset process', {
-      username
-    });
-    
-    // Find user by username and valid reset token
+
     const user = await this.userModel.findOne({
       username,
       resetPasswordToken: resetToken,
-      resetPasswordExpires: { $gt: new Date() }
+      resetPasswordExpires: { $gt: new Date() },
     });
-    
+
     if (!user) {
-      console.log('❌ [AUTH_SERVICE] Password reset failed - invalid or expired token', {
-        username
-      });
       throw new BadRequestException('Invalid or expired reset token');
     }
-    
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
-    
-    // Update user password and clear reset token
-    user.password = hashedPassword;
+
+    user.password = await bcrypt.hash(newPassword, 12);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
-    
-    console.log('✅ [AUTH_SERVICE] Password reset successfully', {
-      username,
-      userId: user.userId
-    });
-    
+
     return {
       message: 'Password reset successfully',
       user: {
@@ -229,5 +225,15 @@ export class AuthService {
         role: user.role,
       },
     };
+  }
+
+  /** Mask email: jo***@gmail.com */
+  private maskEmail(email: string): string {
+    const [local, domain] = email.split('@');
+    const masked =
+      local.length <= 2
+        ? local[0] + '***'
+        : local.slice(0, 2) + '***';
+    return `${masked}@${domain}`;
   }
 }
