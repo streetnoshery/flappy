@@ -1,0 +1,22 @@
+# Shell scripts (may contain server paths, credentials, deploy info)
+*.sh
+
+# Deploy scripts
+deploy/
+
+# Tar archives
+*.tar.gz
+
+# Debug / scratch files
+debug-*.js
+simple-*.js
+logo-showcase-route.js
+test-*.sh
+
+# Nginx config (contains server infrastructure details)
+nginx.conf
+
+# Environment files
+.env
+.env.*
+!.env.example
