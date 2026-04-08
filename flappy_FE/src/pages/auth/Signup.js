@@ -8,6 +8,7 @@ import AuthLayout from '../../components/auth/AuthLayout';
 import AuthInput from '../../components/auth/AuthInput';
 import AuthButton from '../../components/auth/AuthButton';
 import PasswordStrength from '../../components/auth/PasswordStrength';
+import OtpVerification from '../../components/auth/OtpVerification';
 import Logo from '../../components/Logo';
 
 const emailRegex    = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -16,9 +17,11 @@ const usernameRegex = /^[a-zA-Z0-9_]+$/;
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
 
 const Signup = () => {
-  const { signup } = useAuth();
+  const { signup, verifySignupOtp, resendOtp } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpData, setOtpData] = useState({ maskedEmail: '', rawEmail: '' });
   const { register, handleSubmit, formState: { errors }, watch } = useForm();
 
   const password = watch('password', '');
@@ -28,9 +31,12 @@ const Signup = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      await signup(data);
-      toast.success('Account created! Welcome to Flappy 🎉');
-      navigate('/');
+      const result = await signup(data);
+      if (result.otpRequired) {
+        setOtpData({ maskedEmail: result.email, rawEmail: result.rawEmail });
+        setOtpStep(true);
+        toast.success('OTP sent to your email');
+      }
     } catch (error) {
       const msg = error.response?.data?.message;
       Array.isArray(msg) ? msg.forEach(m => toast.error(m)) : toast.error(msg || 'Signup failed');
@@ -39,104 +45,135 @@ const Signup = () => {
     }
   };
 
+  const handleVerifyOtp = async (otp) => {
+    setLoading(true);
+    try {
+      await verifySignupOtp({ email: otpData.rawEmail, otp });
+      toast.success('Account verified! Welcome to Flappy 🎉');
+      navigate('/');
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    await resendOtp(otpData.rawEmail);
+    toast.success('New OTP sent');
+  };
+
   return (
     <AuthLayout>
-      {/* Header */}
-      <div className="text-center mb-8">
-        <Logo size="lg" variant="bird" className="justify-center mb-5" />
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Create your account</h1>
-        <p className="text-sm text-slate-500 mt-1">Join Flappy and start sharing</p>
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <AuthInput
-          label="Email"
-          icon={Mail}
-          type="email"
-          placeholder="you@example.com"
-          error={errors.email?.message}
-          {...register('email', {
-            required: 'Email is required',
-            pattern: { value: emailRegex, message: 'Enter a valid email address' },
-          })}
+      {otpStep ? (
+        <OtpVerification
+          maskedEmail={otpData.maskedEmail}
+          rawEmail={otpData.rawEmail}
+          onVerify={handleVerifyOtp}
+          onResend={handleResendOtp}
+          onBack={() => setOtpStep(false)}
+          loading={loading}
         />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="text-center mb-8">
+            <Logo size="lg" variant="bird" className="justify-center mb-5" />
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Create your account</h1>
+            <p className="text-sm text-slate-500 mt-1">Join Flappy and start sharing</p>
+          </div>
 
-        <AuthInput
-          label="Username"
-          icon={User}
-          type="text"
-          placeholder="your_username"
-          error={errors.username?.message}
-          {...register('username', {
-            required: 'Username is required',
-            minLength: { value: 3, message: 'At least 3 characters' },
-            pattern: { value: usernameRegex, message: 'Letters, numbers and underscores only' },
-          })}
-        />
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+            <AuthInput
+              label="Email"
+              icon={Mail}
+              type="email"
+              placeholder="you@example.com"
+              error={errors.email?.message}
+              {...register('email', {
+                required: 'Email is required',
+                pattern: { value: emailRegex, message: 'Enter a valid email address' },
+              })}
+            />
 
-        <AuthInput
-          label="Phone Number"
-          icon={Phone}
-          type="tel"
-          placeholder="10-digit number"
-          maxLength="10"
-          error={errors.phone?.message}
-          onInput={e => { e.target.value = e.target.value.replace(/[^0-9]/g, ''); }}
-          {...register('phone', {
-            required: 'Phone number is required',
-            pattern: { value: phoneRegex, message: 'Must be exactly 10 digits' },
-          })}
-        />
+            <AuthInput
+              label="Username"
+              icon={User}
+              type="text"
+              placeholder="your_username"
+              error={errors.username?.message}
+              {...register('username', {
+                required: 'Username is required',
+                minLength: { value: 3, message: 'At least 3 characters' },
+                pattern: { value: usernameRegex, message: 'Letters, numbers and underscores only' },
+              })}
+            />
 
-        <div>
-          <AuthInput
-            label="Password"
-            icon={Lock}
-            type="password"
-            placeholder="Create a strong password"
-            error={errors.password?.message}
-            {...register('password', {
-              required: 'Password is required',
-              minLength: { value: 8, message: 'At least 8 characters' },
-              pattern: { value: passwordRegex, message: 'Must include uppercase, lowercase, number & special char' },
-            })}
-          />
-          <PasswordStrength password={password} />
-        </div>
+            <AuthInput
+              label="Phone Number"
+              icon={Phone}
+              type="tel"
+              placeholder="10-digit number"
+              maxLength="10"
+              error={errors.phone?.message}
+              onInput={e => { e.target.value = e.target.value.replace(/[^0-9]/g, ''); }}
+              {...register('phone', {
+                required: 'Phone number is required',
+                pattern: { value: phoneRegex, message: 'Must be exactly 10 digits' },
+              })}
+            />
 
-        <AuthInput
-          label="Confirm Password"
-          icon={Lock}
-          type="password"
-          placeholder="Repeat your password"
-          error={errors.confirmPassword?.message}
-          {...register('confirmPassword', {
-            required: 'Please confirm your password',
-            validate: v => v === password || 'Passwords do not match',
-          })}
-        />
+            <div>
+              <AuthInput
+                label="Password"
+                icon={Lock}
+                type="password"
+                placeholder="Create a strong password"
+                error={errors.password?.message}
+                {...register('password', {
+                  required: 'Password is required',
+                  minLength: { value: 8, message: 'At least 8 characters' },
+                  pattern: { value: passwordRegex, message: 'Must include uppercase, lowercase, number & special char' },
+                })}
+              />
+              <PasswordStrength password={password} />
+            </div>
 
-        <div className="pt-1">
-          <AuthButton type="submit" loading={loading} disabled={isFormEmpty}>
-            {loading ? 'Creating account…' : 'Create account'}
-          </AuthButton>
-        </div>
-      </form>
+            <AuthInput
+              label="Confirm Password"
+              icon={Lock}
+              type="password"
+              placeholder="Repeat your password"
+              error={errors.confirmPassword?.message}
+              {...register('confirmPassword', {
+                required: 'Please confirm your password',
+                validate: v => v === password || 'Passwords do not match',
+              })}
+            />
 
-      {/* Divider */}
-      <div className="flex items-center gap-3 my-6">
-        <div className="flex-1 h-px bg-slate-200" />
-        <span className="text-xs text-slate-400 font-medium">OR</span>
-        <div className="flex-1 h-px bg-slate-200" />
-      </div>
+            <div className="pt-1">
+              <AuthButton type="submit" loading={loading} disabled={isFormEmpty}>
+                {loading ? 'Creating account…' : 'Create account'}
+              </AuthButton>
+            </div>
+          </form>
 
-      {/* Footer */}
-      <p className="text-center text-sm text-slate-500">
-        Already have an account?{' '}
-        <Link to="/login" className="font-semibold text-primary-600 hover:text-primary-700 transition-colors">
-          Sign in
-        </Link>
-      </p>
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400 font-medium">OR</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          {/* Footer */}
+          <p className="text-center text-sm text-slate-500">
+            Already have an account?{' '}
+            <Link to="/login" className="font-semibold text-primary-600 hover:text-primary-700 transition-colors">
+              Sign in
+            </Link>
+          </p>
+        </>
+      )}
     </AuthLayout>
   );
 };

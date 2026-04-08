@@ -35,6 +35,10 @@ export class AuthService {
     private readonly otpStore: OtpStoreService,
   ) {}
 
+  /**
+   * Signup Step 1: Validate uniqueness, hash password, store pending data, send OTP.
+   * User is NOT created in DB yet — only after OTP verification.
+   */
   async signup(signupDto: SignupDto) {
     const { email, phone, password, username } = signupDto;
 
@@ -46,22 +50,72 @@ export class AuthService {
       throw new ConflictException('User already exists');
     }
 
-    const userId = uuidv4();
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Rate limit check
+    const rateLimitSeconds = this.otpStore.checkRateLimit(email);
+    if (rateLimitSeconds > 0) {
+      throw new HttpException(
+        `Too many OTP requests. Try again in ${rateLimitSeconds} seconds.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
 
-    const user = new this.userModel({
-      userId,
+    // Hash password and store pending signup data (not in DB yet)
+    const hashedPassword = await bcrypt.hash(password, 12);
+    this.otpStore.storePendingSignup(email, {
       email,
       phone,
       username,
-      password: hashedPassword,
+      hashedPassword,
+      expiresAt: Date.now() + 5 * 60 * 1000, // 5 min, same as OTP
+    });
+
+    // Send OTP
+    const otp = await this.emailService.sendOtpViaEmail(email);
+    this.otpStore.storeOtp(email, otp);
+
+    this.logger.log(`Signup OTP sent to ${this.maskEmail(email)} for ${username}`);
+
+    return {
+      message: 'OTP sent to your email for verification.',
+      otpRequired: true,
+      email: this.maskEmail(email),
+      rawEmail: email,
+    };
+  }
+
+  /**
+   * Signup Step 2: Verify OTP → create user in DB, return user data.
+   */
+  async verifySignupOtp(verifyOtpDto: VerifyOtpDto) {
+    const { email, otp } = verifyOtpDto;
+
+    const result = this.otpStore.verifyOtp(email, otp);
+    if (!result.valid) {
+      throw new UnauthorizedException(result.message);
+    }
+
+    // Retrieve pending signup data
+    const pending = this.otpStore.consumePendingSignup(email);
+    if (!pending) {
+      throw new BadRequestException('Signup session expired. Please sign up again.');
+    }
+
+    // Now create the user in DB
+    const userId = uuidv4();
+    const user = new this.userModel({
+      userId,
+      email: pending.email,
+      phone: pending.phone,
+      username: pending.username,
+      password: pending.hashedPassword,
+      emailVerified: true,
     });
 
     await user.save();
-    this.logger.log(`User registered: ${username} (${email})`);
+    this.logger.log(`User created after OTP verification: ${user.username} (${user.email})`);
 
     return {
-      message: 'User created successfully',
+      message: 'Email verified successfully. Welcome to Flappy!',
       user: {
         userId: user.userId,
         id: user._id,

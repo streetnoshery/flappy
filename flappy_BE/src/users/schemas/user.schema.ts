@@ -35,6 +35,9 @@ export class User extends Document {
   @Prop({ enum: UserRole, default: UserRole.USER })
   role: UserRole;
 
+  @Prop({ default: false })
+  emailVerified: boolean;
+
   @Prop()
   resetPasswordToken: string;
 

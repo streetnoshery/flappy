@@ -53,6 +53,14 @@ export const AuthProvider = ({ children }) => {
   const signup = async (userData) => {
     const { confirmPassword, ...signupData } = userData;
     const response = await authAPI.signup(signupData);
+    return response.data; // { otpRequired, email (masked), rawEmail }
+  };
+
+  /**
+   * Verify OTP after signup → completes registration, stores user
+   */
+  const verifySignupOtp = async ({ email, otp }) => {
+    const response = await authAPI.verifySignupOtp({ email, otp });
     const { user } = response.data;
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
@@ -70,6 +78,7 @@ export const AuthProvider = ({ children }) => {
     verifyOtp,
     resendOtp,
     signup,
+    verifySignupOtp,
     logout,
     loading,
   };

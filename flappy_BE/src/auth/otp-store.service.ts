@@ -13,11 +13,20 @@ interface RateLimitRecord {
   windowStart: number;
 }
 
+export interface PendingSignup {
+  email: string;
+  phone: string;
+  username: string;
+  hashedPassword: string;
+  expiresAt: number;
+}
+
 @Injectable()
 export class OtpStoreService {
   private readonly logger = new Logger(OtpStoreService.name);
   private store = new Map<string, OtpRecord>();
   private rateLimits = new Map<string, RateLimitRecord>();
+  private pendingSignups = new Map<string, PendingSignup>();
 
   private readonly OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
   private readonly MAX_ATTEMPTS = 5;
@@ -112,6 +121,28 @@ export class OtpStoreService {
   }
 
   /**
+   * Store pending signup data (user not yet created in DB).
+   */
+  storePendingSignup(email: string, data: PendingSignup): void {
+    this.pendingSignups.set(email, data);
+    this.logger.log(`Pending signup stored for ${email}`);
+  }
+
+  /**
+   * Retrieve and remove pending signup data.
+   */
+  consumePendingSignup(email: string): PendingSignup | null {
+    const data = this.pendingSignups.get(email);
+    if (!data) return null;
+    if (Date.now() > data.expiresAt) {
+      this.pendingSignups.delete(email);
+      return null;
+    }
+    this.pendingSignups.delete(email);
+    return data;
+  }
+
+  /**
    * Remove expired entries periodically (call from a cron or interval).
    */
   cleanup(): void {
@@ -124,6 +155,11 @@ export class OtpStoreService {
     for (const [key, record] of this.rateLimits.entries()) {
       if (now - record.windowStart > this.RATE_LIMIT_WINDOW_MS) {
         this.rateLimits.delete(key);
+      }
+    }
+    for (const [key, data] of this.pendingSignups.entries()) {
+      if (now > data.expiresAt) {
+        this.pendingSignups.delete(key);
       }
     }
   }

@@ -45,7 +45,7 @@ const Login = () => {
       toast.success('Welcome back!');
       navigate('/');
     } catch (error) {
-      throw error; // let OtpVerification component handle the error display
+      throw error;
     } finally {
       setLoading(false);
     }

@@ -30,6 +30,12 @@ export class AuthController {
     return this.authService.verifyLoginOtp(verifyOtpDto);
   }
 
+  @Post('otp/verify-signup')
+  @HttpCode(HttpStatus.OK)
+  async verifySignupOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.verifySignupOtp(verifyOtpDto);
+  }
+
   @Post('otp/resend')
   @HttpCode(HttpStatus.OK)
   async resendOtp(@Body() resendOtpDto: ResendOtpDto) {
