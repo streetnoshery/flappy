@@ -5,6 +5,7 @@ import { MessageCircle, Reply, Send, ChevronDown } from 'lucide-react';
 import { interactionsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import UserAvatar from './UserAvatar';
+import Linkify from '../utils/linkify';
 import toast from 'react-hot-toast';
 
 const relativeTime = (date) => {
@@ -146,7 +147,7 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
                           <span className="text-xs font-semibold text-slate-800">{comment.userId?.username || 'User'}</span>
                           <span className="text-xs text-slate-400">{relativeTime(comment.createdAt)}</span>
                         </div>
-                        <p className="text-sm text-slate-700">{comment.text}</p>
+                        <p className="text-sm text-slate-700"><Linkify>{comment.text}</Linkify></p>
                       </div>
                       <button
                         onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
@@ -191,7 +192,7 @@ const CommentSection = ({ postId, showComments = false, onToggleComments, maxCom
                                   <span className="text-xs font-semibold text-slate-800">{reply.userId?.username || 'User'}</span>
                                   <span className="text-xs text-slate-400">{relativeTime(reply.createdAt)}</span>
                                 </div>
-                                <p className="text-xs text-slate-700">{reply.text}</p>
+                                <p className="text-xs text-slate-700"><Linkify>{reply.text}</Linkify></p>
                               </div>
                             </div>
                           ))}

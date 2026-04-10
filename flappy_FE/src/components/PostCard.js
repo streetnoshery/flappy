@@ -9,6 +9,7 @@ import CommentSection from './CommentSection';
 import ShareModal from './ShareModal';
 import UserAvatar from './UserAvatar';
 import { getChipStyle, getAccentColor } from '../utils/profileColors';
+import Linkify from '../utils/linkify';
 import toast from 'react-hot-toast';
 
 /* Relative time helper */
@@ -131,7 +132,7 @@ const PostCard = ({ post }) => {
 
       {/* ── Content ────────────────────────────────── */}
       <div className="px-4 pb-3">
-        <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap"><Linkify>{post.content}</Linkify></p>
 
         {post.mediaUrl && (post.type === 'image' || post.type === 'gif') && (
           <div className="mt-3 rounded-xl overflow-hidden bg-slate-100">

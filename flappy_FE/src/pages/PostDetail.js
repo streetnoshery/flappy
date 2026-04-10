@@ -8,6 +8,7 @@ import CommentSection from '../components/CommentSection';
 import ShareModal from '../components/ShareModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import Linkify from '../utils/linkify';
 import toast from 'react-hot-toast';
 
 const PostDetail = () => {
@@ -76,7 +77,7 @@ const PostDetail = () => {
             </div>
 
             <div className="mb-4">
-              <p className="text-gray-900 mb-3 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+              <p className="text-gray-900 mb-3 leading-relaxed whitespace-pre-wrap"><Linkify>{post.content}</Linkify></p>
               
               {post.mediaUrl && (
                 <div className="mb-3">

@@ -5,6 +5,7 @@ import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import ShareModal from './ShareModal';
 import UserAvatar from './UserAvatar';
 import { getChipStyle } from '../utils/profileColors';
+import Linkify from '../utils/linkify';
 import toast from 'react-hot-toast';
 
 const relativeTime = (date) => {
@@ -40,7 +41,7 @@ const ProfilePostCard = ({ post }) => {
 
       {/* Content */}
       <div className="px-4 pb-3">
-        <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap"><Linkify>{post.content}</Linkify></p>
 
         {post.mediaUrl && (
           <div className="mt-3 rounded-xl overflow-hidden bg-slate-100">
