@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from 'react-query';
-import { Sparkles, Users, TrendingUp, PlusSquare, RefreshCw } from 'lucide-react';
+import { useInfiniteQuery } from 'react-query';
+import { Sparkles, Users, TrendingUp, PlusSquare, RefreshCw, Loader2 } from 'lucide-react';
 import { feedAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import PostCard from '../components/PostCard';
@@ -44,13 +44,54 @@ const Home = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('for-you');
 
-  const { data: feedData, isLoading, error, refetch } = useQuery(
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery(
     ['homeFeed', activeTab],
-    () => feedAPI.getHomeFeed(),
-    { refetchOnWindowFocus: false, staleTime: 30_000 }
+    ({ pageParam = 1 }) => feedAPI.getHomeFeed(pageParam),
+    {
+      getNextPageParam: (lastPage) => {
+        const feed = lastPage?.data;
+        return feed?.hasMore ? feed.page + 1 : undefined;
+      },
+      refetchOnWindowFocus: false,
+      staleTime: 30_000,
+    }
   );
 
-  const posts = feedData?.data?.posts || [];
+  // Flatten all pages into a single posts array
+  const posts = data?.pages?.flatMap((page) => page?.data?.posts || []) || [];
+
+  // IntersectionObserver sentinel ref for infinite scroll
+  const sentinelRef = useRef(null);
+
+  const handleObserver = useCallback(
+    (entries) => {
+      const [entry] = entries;
+      if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [fetchNextPage, hasNextPage, isFetchingNextPage]
+  );
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(handleObserver, {
+      rootMargin: '200px',
+    });
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [handleObserver]);
 
   return (
     <div className="max-w-xl mx-auto space-y-4">
@@ -98,6 +139,21 @@ const Home = () => {
       ) : (
         <div className="space-y-4">
           {posts.map(post => <PostCard key={post._id} post={post} />)}
+
+          {/* Sentinel element — triggers next page load when scrolled into view */}
+          <div ref={sentinelRef} className="h-1" />
+
+          {isFetchingNextPage && (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
+            </div>
+          )}
+
+          {!hasNextPage && posts.length > 0 && (
+            <p className="text-center text-sm text-slate-400 py-6">
+              You're all caught up!
+            </p>
+          )}
         </div>
       )}
     </div>
