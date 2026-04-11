@@ -9,6 +9,7 @@ import { FeedModule } from './feed/feed.module';
 import { InteractionsModule } from './interactions/interactions.module';
 import { ReactionsModule } from './reactions/reactions.module';
 import { SearchModule } from './search/search.module';
+import { FollowModule } from './follow/follow.module';
 import { FeatureFlagsModule } from './common/feature-flags.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { FeatureFlagsModule } from './common/feature-flags.module';
     InteractionsModule,
     ReactionsModule,
     SearchModule,
+    FollowModule,
   ],
 })
 export class AppModule {}

@@ -9,13 +9,20 @@ import ProfilePostCard from '../components/ProfilePostCard';
 import ReportModal from '../components/ReportModal';
 import SkeletonCard from '../components/SkeletonCard';
 import UserAvatar from '../components/UserAvatar';
+import FollowButton from '../components/FollowButton';
+import FollowListModal from '../components/FollowListModal';
 import { getHeaderStyle, getAccentColor, getChipStyle } from '../utils/profileColors';
 
-const StatBadge = ({ value, label }) => (
-  <div className="text-center">
+const StatBadge = ({ value, label, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={!onClick}
+    className={`text-center ${onClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
+  >
     <p className="text-lg font-bold text-slate-900">{value}</p>
     <p className="text-xs text-slate-500">{label}</p>
-  </div>
+  </button>
 );
 
 const Profile = () => {
@@ -23,6 +30,7 @@ const Profile = () => {
   const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('posts');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [followModal, setFollowModal] = useState({ open: false, type: 'followers' });
 
   const { data: userData, isLoading: userLoading, error: userError } = useQuery(
     ['user', userId],
@@ -38,11 +46,19 @@ const Profile = () => {
     { enabled: !!actualUserId }
   );
 
+  // Fetch follow stats from cache-backed endpoint
+  const { data: statsData } = useQuery(
+    ['profileStats', actualUserId],
+    () => usersAPI.getProfileStats(actualUserId),
+    { enabled: !!actualUserId, staleTime: 10000 }
+  );
+
   if (userLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   if (userError)   return <div className="card p-10 text-center text-red-500">Error loading profile</div>;
 
   const user = userData?.data;
   const isOwnProfile = currentUser?.userId === userId;
+  const stats = statsData?.data || { followerCount: 0, followingCount: 0, isFollowing: false };
 
   let posts = [];
   try {
@@ -61,16 +77,10 @@ const Profile = () => {
     <div className="max-w-2xl mx-auto space-y-4">
       {/* ── Profile header card ─────────────────────── */}
       <div className="card overflow-hidden">
-        {/* Cover + avatar overlap — all in one relative container */}
         <div className="relative" style={{ paddingBottom: '44px' }}>
-          {/* Cover banner */}
           <div className="h-28" style={getHeaderStyle(user?.userId)} />
 
-          {/* Avatar — absolute, left-aligned, straddling the cover bottom */}
-          <div
-            className="absolute left-5"
-            style={{ bottom: '0px' }}
-          >
+          <div className="absolute left-5" style={{ bottom: '0px' }}>
             <div className="p-[3px] bg-white rounded-2xl shadow-lg">
               <div
                 className="w-20 h-20 rounded-xl overflow-hidden flex items-center justify-center text-white text-2xl font-bold"
@@ -84,15 +94,13 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Follow / Report — bottom-right of cover */}
           {!isOwnProfile && (
             <div className="absolute right-4 flex gap-2" style={{ bottom: '10px' }}>
-              <button
-                className="py-1.5 px-5 text-sm rounded-xl text-white font-semibold shadow-sm hover:opacity-90 transition-opacity"
-                style={{ background: getHeaderStyle(user?.userId).background }}
-              >
-                Follow
-              </button>
+              <FollowButton
+                targetUserId={actualUserId}
+                isFollowing={stats.isFollowing}
+                accentBg={getHeaderStyle(user?.userId).background}
+              />
               <button
                 onClick={() => setShowReportModal(true)}
                 className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-500 transition-colors shadow-sm"
@@ -104,10 +112,7 @@ const Profile = () => {
           )}
         </div>
 
-        {/* Name / bio / stats */}
         <div className="px-5 pt-3 pb-5">
-
-          {/* Name + bio */}
           <div className="space-y-1 mb-4">
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-slate-900">{user?.username}</h1>
@@ -125,11 +130,18 @@ const Profile = () => {
             )}
           </div>
 
-          {/* Stats */}
           <div className="flex items-center gap-6 py-3 border-t border-slate-100">
             <StatBadge value={posts.length} label="Posts" />
-            <StatBadge value="—" label="Followers" />
-            <StatBadge value="—" label="Following" />
+            <StatBadge
+              value={stats.followerCount}
+              label="Followers"
+              onClick={() => setFollowModal({ open: true, type: 'followers' })}
+            />
+            <StatBadge
+              value={stats.followingCount}
+              label="Following"
+              onClick={() => setFollowModal({ open: true, type: 'following' })}
+            />
           </div>
         </div>
       </div>
@@ -138,7 +150,6 @@ const Profile = () => {
       <div className="card px-2 py-1 flex items-center gap-1">
         {tabs.map(({ id, label, icon: Icon }) => {
           const isActive = activeTab === id;
-          const accentColor = getAccentColor(user?.userId);
           return (
             <button
               key={id}
@@ -184,6 +195,14 @@ const Profile = () => {
           <p className="text-sm text-slate-500">Activity feed coming soon</p>
         </div>
       )}
+
+      {/* Modals */}
+      <FollowListModal
+        isOpen={followModal.open}
+        onClose={() => setFollowModal({ ...followModal, open: false })}
+        userId={actualUserId}
+        type={followModal.type}
+      />
 
       {showReportModal && (
         <ReportModal

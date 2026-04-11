@@ -12,12 +12,22 @@ async function bootstrap() {
   }));
   
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'https://flappy.co.in',
-      'http://flappy.co.in',
-      process.env.FRONTEND_URL
-    ].filter(Boolean),
+    origin: (origin, callback) => {
+      const allowed = [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://flappy.co.in',
+        'http://flappy.co.in',
+        process.env.FRONTEND_URL,
+      ].filter(Boolean);
+
+      // Allow requests with no origin (mobile apps, curl, Postman, server-to-server)
+      if (!origin || allowed.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],

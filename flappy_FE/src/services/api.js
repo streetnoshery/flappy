@@ -74,6 +74,23 @@ export const usersAPI = {
     return api.post(`/users/${id}/upload-photo`, formData);
   },
   searchUsers: (username) => api.get(`/users/search?username=${username}`),
+  // Follow
+  toggleFollow: (targetUserId) => {
+    const user = getUserData();
+    return api.post(`/users/${targetUserId}/follow`, { userId: user?.userId });
+  },
+  getProfileStats: (userId) => {
+    const user = getUserData();
+    return api.get(`/users/${userId}/stats${user?.userId ? `?currentUserId=${user.userId}` : ''}`);
+  },
+  getFollowers: (userId) => {
+    const user = getUserData();
+    return api.get(`/users/${userId}/followers${user?.userId ? `?currentUserId=${user.userId}` : ''}`);
+  },
+  getFollowing: (userId) => {
+    const user = getUserData();
+    return api.get(`/users/${userId}/following${user?.userId ? `?currentUserId=${user.userId}` : ''}`);
+  },
 };
 
 // Posts API
