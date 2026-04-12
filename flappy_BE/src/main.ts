@@ -18,6 +18,8 @@ async function bootstrap() {
         'http://localhost:3001',
         'https://flappy.co.in',
         'http://flappy.co.in',
+        'https://www.flappy.co.in',
+        'http://www.flappy.co.in',
         process.env.FRONTEND_URL,
       ].filter(Boolean);
 

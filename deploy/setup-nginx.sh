@@ -14,9 +14,16 @@ echo "🌐 Configuring Nginx for $DOMAIN..."
 
 # ── Write nginx config ───────────────────────────────────────
 sudo tee /etc/nginx/sites-available/flappy > /dev/null <<EOF
+# Redirect www to non-www
 server {
     listen 80;
-    server_name $DOMAIN www.$DOMAIN;
+    server_name www.$DOMAIN;
+    return 301 http://$DOMAIN\$request_uri;
+}
+
+server {
+    listen 80;
+    server_name $DOMAIN;
 
     # Frontend - serve React build
     root $BUILD_DIR;
