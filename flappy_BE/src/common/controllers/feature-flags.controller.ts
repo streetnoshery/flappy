@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
+import { Public } from '../../auth/decorators/public.decorator';
 import { FeatureFlagsService } from '../services/feature-flags.service';
 
+@Public()
 @Controller('feature-flags')
 export class FeatureFlagsController {
   constructor(private readonly featureFlagsService: FeatureFlagsService) {}

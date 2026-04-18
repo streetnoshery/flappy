@@ -36,8 +36,9 @@ export const AuthProvider = ({ children }) => {
    */
   const verifyOtp = async ({ email, otp }) => {
     const response = await authAPI.verifyOtp({ email, otp });
-    const { user } = response.data;
+    const { user, accessToken } = response.data;
     localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('accessToken', accessToken);
     setUser(user);
     return response.data;
   };
@@ -61,14 +62,16 @@ export const AuthProvider = ({ children }) => {
    */
   const verifySignupOtp = async ({ email, otp }) => {
     const response = await authAPI.verifySignupOtp({ email, otp });
-    const { user } = response.data;
+    const { user, accessToken } = response.data;
     localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('accessToken', accessToken);
     setUser(user);
     return response.data;
   };
 
   const logout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
     setUser(null);
   };
 

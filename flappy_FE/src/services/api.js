@@ -12,10 +12,16 @@ const getUserData = () => {
   return userData ? JSON.parse(userData) : null;
 };
 
-// Request interceptor to add request ID and user data
+// Request interceptor to add request ID, user data, and JWT token
 api.interceptors.request.use((config) => {
   // Add request ID for tracking
   config.headers['X-Request-ID'] = `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  
+  // Attach JWT token if available
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
   
   console.log(`🚀 [API] ${config.method?.toUpperCase()} ${config.url}`, {
     requestId: config.headers['X-Request-ID'],
@@ -44,6 +50,13 @@ api.interceptors.response.use(
       error: error.message,
       timestamp: new Date().toISOString()
     });
+
+    // If token is expired or invalid, clear session and redirect to login
+    if (error.response?.status === 401 && !originalRequest?.url?.includes('/auth/')) {
+      localStorage.removeItem('user');
+      localStorage.removeItem('accessToken');
+      window.location.href = '/login';
+    }
     
     return Promise.reject(error);
   }

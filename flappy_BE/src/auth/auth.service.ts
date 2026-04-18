@@ -9,6 +9,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { JwtService } from '@nestjs/jwt';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -24,6 +25,7 @@ import {
 } from './dto/auth.dto';
 import { EmailService } from './email.service';
 import { OtpStoreService } from './otp-store.service';
+import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
 export class AuthService {
@@ -31,6 +33,7 @@ export class AuthService {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
+    private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
     private readonly otpStore: OtpStoreService,
   ) {}
@@ -114,8 +117,16 @@ export class AuthService {
     await user.save();
     this.logger.log(`User created after OTP verification: ${user.username} (${user.email})`);
 
+    // Issue JWT for the newly created user
+    const payload: JwtPayload = {
+      sub: user.userId,
+      email: user.email,
+    };
+    const accessToken = this.jwtService.sign(payload);
+
     return {
       message: 'Email verified successfully. Welcome to Flappy!',
+      accessToken,
       user: {
         userId: user.userId,
         id: user._id,
@@ -190,8 +201,16 @@ export class AuthService {
 
     this.logger.log(`OTP verified, login complete for ${user.username}`);
 
+    // Issue JWT — sub = userId (unique identifier)
+    const payload: JwtPayload = {
+      sub: user.userId,
+      email: user.email,
+    };
+    const accessToken = this.jwtService.sign(payload);
+
     return {
       message: 'Login successful',
+      accessToken,
       user: {
         userId: user.userId,
         id: user._id,
