@@ -135,6 +135,14 @@ export const feedAPI = {
     const user = getUserData();
     return api.get(`/feed/home?page=${page}${user?.userId ? `&userId=${user.userId}` : ''}`);
   },
+  getFollowingFeed: (page = 1) => {
+    const user = getUserData();
+    return api.get(`/feed/following?page=${page}${user?.userId ? `&userId=${user.userId}` : ''}`);
+  },
+  getTrendingFeed: (page = 1) => {
+    const user = getUserData();
+    return api.get(`/feed/trending?page=${page}${user?.userId ? `&userId=${user.userId}` : ''}`);
+  },
   getReelsFeed: (page = 1) => {
     const user = getUserData();
     return api.get(`/feed/reels?page=${page}${user?.userId ? `&userId=${user.userId}` : ''}`);

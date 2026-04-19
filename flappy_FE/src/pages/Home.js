@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery } from 'react-query';
-import { Sparkles, Users, TrendingUp, PlusSquare, RefreshCw, Loader2 } from 'lucide-react';
+import { Sparkles, Users, TrendingUp, PlusSquare, RefreshCw, Loader2, Search } from 'lucide-react';
 import { feedAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import PostCard from '../components/PostCard';
@@ -27,6 +27,19 @@ const EmptyFeed = () => (
   </div>
 );
 
+const FollowingEmptyState = () => (
+  <div className="card p-10 text-center animate-fade-up">
+    <div className="w-16 h-16 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-4">
+      <Users className="w-8 h-8 text-primary-500" />
+    </div>
+    <h3 className="text-base font-semibold text-slate-800 mb-1">You're not following anyone yet</h3>
+    <p className="text-sm text-slate-500 mb-5">Follow people to see their posts here.</p>
+    <Link to="/explore" className="btn-primary inline-flex mx-auto">
+      <Search className="w-4 h-4" /> Discover accounts
+    </Link>
+  </div>
+);
+
 const ErrorFeed = ({ onRetry }) => (
   <div className="card p-10 text-center animate-fade-up">
     <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
@@ -44,6 +57,12 @@ const Home = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('for-you');
 
+  const feedFetchFns = {
+    'for-you': feedAPI.getHomeFeed,
+    'following': feedAPI.getFollowingFeed,
+    'trending': feedAPI.getTrendingFeed,
+  };
+
   const {
     data,
     isLoading,
@@ -54,7 +73,7 @@ const Home = () => {
     isFetchingNextPage,
   } = useInfiniteQuery(
     ['homeFeed', activeTab],
-    ({ pageParam = 1 }) => feedAPI.getHomeFeed(pageParam),
+    ({ pageParam = 1 }) => feedFetchFns[activeTab](pageParam),
     {
       getNextPageParam: (lastPage) => {
         const feed = lastPage?.data;
@@ -135,7 +154,7 @@ const Home = () => {
       ) : error ? (
         <ErrorFeed onRetry={refetch} />
       ) : posts.length === 0 ? (
-        <EmptyFeed />
+        activeTab === 'following' ? <FollowingEmptyState /> : <EmptyFeed />
       ) : (
         <div className="space-y-4">
           {posts.map(post => <PostCard key={post._id} post={post} />)}
