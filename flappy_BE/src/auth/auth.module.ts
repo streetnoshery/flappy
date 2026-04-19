@@ -21,7 +21,7 @@ import { UsersModule } from '../users/users.module';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: '30m', // inactivity-based expiry: 30 minutes
+          expiresIn: '1h', // Auto-logout after 1 hour
         },
       }),
     }),
