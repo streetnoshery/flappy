@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { Grid3X3, Bookmark, Activity, Globe, Flag } from 'lucide-react';
-import { usersAPI, postsAPI } from '../services/api';
+import { Grid3X3, Bookmark, Activity, Globe, Flag, Pencil } from 'lucide-react';
+import { usersAPI, postsAPI, interactionsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProfilePostCard from '../components/ProfilePostCard';
@@ -11,6 +11,7 @@ import SkeletonCard from '../components/SkeletonCard';
 import UserAvatar from '../components/UserAvatar';
 import FollowButton from '../components/FollowButton';
 import FollowListModal from '../components/FollowListModal';
+import EditProfileModal from '../components/EditProfileModal';
 import { getHeaderStyle, getAccentColor, getChipStyle } from '../utils/profileColors';
 
 const StatBadge = ({ value, label, onClick }) => (
@@ -30,9 +31,10 @@ const Profile = () => {
   const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('posts');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [followModal, setFollowModal] = useState({ open: false, type: 'followers' });
 
-  const { data: userData, isLoading: userLoading, error: userError } = useQuery(
+  const { data: userData, isLoading: userLoading, error: userError, refetch: refetchUser } = useQuery(
     ['user', userId],
     () => usersAPI.getUser(userId),
     { enabled: !!userId }
@@ -53,6 +55,15 @@ const Profile = () => {
     { enabled: !!actualUserId, staleTime: 10000 }
   );
 
+  // Fetch bookmarked posts for the "Saved" tab (own profile only)
+  const { data: bookmarksData, isLoading: bookmarksLoading } = useQuery(
+    ['userBookmarks', currentUser?.userId],
+    () => interactionsAPI.getUserBookmarks(currentUser?.userId),
+    {
+      enabled: !!currentUser?.userId && currentUser?.userId === userId && activeTab === 'saved',
+    }
+  );
+
   if (userLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   if (userError)   return <div className="card p-10 text-center text-red-500">Error loading profile</div>;
 
@@ -66,6 +77,13 @@ const Profile = () => {
     else if (postsData?.data && Array.isArray(postsData.data)) posts = postsData.data;
     else if (Array.isArray(postsData)) posts = postsData;
   } catch { posts = []; }
+
+  let bookmarks = [];
+  try {
+    if (bookmarksData?.data?.data && Array.isArray(bookmarksData.data.data)) bookmarks = bookmarksData.data.data;
+    else if (bookmarksData?.data && Array.isArray(bookmarksData.data)) bookmarks = bookmarksData.data;
+    else if (Array.isArray(bookmarksData)) bookmarks = bookmarksData;
+  } catch { bookmarks = []; }
 
   const tabs = [
     { id: 'posts',  label: 'Posts',    icon: Grid3X3 },
@@ -119,8 +137,17 @@ const Profile = () => {
               {user?.role === 'admin' && (
                 <span className="chip bg-amber-100 text-amber-700">Admin</span>
               )}
+              {isOwnProfile && (
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="ml-auto p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                  title="Edit Profile"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
             </div>
-            <p className="text-sm text-slate-500">{user?.email}</p>
+            {isOwnProfile && <p className="text-sm text-slate-500">{user?.email}</p>}
             {user?.bio && <p className="text-sm text-slate-700 leading-relaxed">{user.bio}</p>}
             {user?.website && (
               <a href={user.website} target="_blank" rel="noopener noreferrer"
@@ -183,9 +210,34 @@ const Profile = () => {
       )}
 
       {activeTab === 'saved' && (
-        <div className="card p-10 text-center">
-          <Bookmark className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-slate-500">Saved posts will appear here</p>
+        <div className="space-y-4">
+          {!isOwnProfile ? (
+            <div className="card p-10 text-center">
+              <Bookmark className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">Saved posts are private</p>
+            </div>
+          ) : bookmarksLoading ? (
+            [1, 2].map(i => <SkeletonCard key={i} />)
+          ) : bookmarks.length === 0 ? (
+            <div className="card p-10 text-center">
+              <Bookmark className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">No saved posts yet</p>
+              <p className="text-xs text-slate-400 mt-1">Bookmark posts to see them here</p>
+            </div>
+          ) : (
+            bookmarks.map(post => (
+              <div key={post._id} className="relative">
+                <ProfilePostCard post={post} />
+                {post.bookmarkedAt && (
+                  <div className="absolute top-2 right-2">
+                    <div className="bg-primary-100 text-primary-600 px-2 py-1 rounded-full text-xs font-medium">
+                      Saved {new Date(post.bookmarkedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -211,6 +263,13 @@ const Profile = () => {
           reportedUserId={userId}
         />
       )}
+
+      <EditProfileModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        user={user}
+        onProfileUpdated={refetchUser}
+      />
     </div>
   );
 };

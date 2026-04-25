@@ -77,8 +77,7 @@ export const authAPI = {
 export const usersAPI = {
   getUser: (id) => api.get(`/users/${id}`),
   updateUser: (id, data) => {
-    const user = getUserData();
-    return api.put(`/users/${id}`, { ...data, userId: user?.userId, email: user?.email });
+    return api.put(`/users/${id}`, data);
   },
   uploadPhoto: (id, formData) => {
     const user = getUserData();
