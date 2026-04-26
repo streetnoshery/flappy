@@ -18,24 +18,27 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get(':id')
-  async getUserById(@Param('id') id: string) {
+  async getUserById(@Param('id') id: string, @Query('viewerId') viewerId?: string) {
     console.log('👤 [USERS] GET /users/:id - Fetching user profile', {
       userId: id,
+      viewerId: viewerId ?? null,
       timestamp: new Date().toISOString()
     });
     
     try {
-      const user = await this.usersService.findById(id);
+      const user = await this.usersService.findById(id, viewerId);
       console.log('✅ [USERS] GET /users/:id - User profile retrieved', {
         userId: id,
+        viewerId: viewerId ?? null,
         username: user.username,
-        email: user.email
+        isOwnProfile: viewerId === id
       });
       return user;
     } catch (error) {
       console.error('❌ [USERS] GET /users/:id - Failed to retrieve user', {
         error: error.message,
-        userId: id
+        userId: id,
+        viewerId: viewerId ?? null
       });
       throw error;
     }

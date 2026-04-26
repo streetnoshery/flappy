@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { Grid3X3, Bookmark, Activity, Globe, Flag, Pencil } from 'lucide-react';
-import { usersAPI, postsAPI, interactionsAPI } from '../services/api';
+import { usersAPI, postsAPI, interactionsAPI, subscriptionsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProfilePostCard from '../components/ProfilePostCard';
@@ -10,6 +10,7 @@ import ReportModal from '../components/ReportModal';
 import SkeletonCard from '../components/SkeletonCard';
 import UserAvatar from '../components/UserAvatar';
 import FollowButton from '../components/FollowButton';
+import SubscribeButton from '../components/subscription/SubscribeButton';
 import FollowListModal from '../components/FollowListModal';
 import EditProfileModal from '../components/EditProfileModal';
 import { getHeaderStyle, getAccentColor, getChipStyle } from '../utils/profileColors';
@@ -55,6 +56,13 @@ const Profile = () => {
     { enabled: !!actualUserId, staleTime: 10000 }
   );
 
+  // Fetch current user's subscription status for SubscribeButton
+  const { data: subscriptionData } = useQuery(
+    ['subscriptionStatus', currentUser?.userId],
+    () => subscriptionsAPI.getSubscriptionStatus(currentUser?.userId),
+    { enabled: !!currentUser?.userId, staleTime: 10000 }
+  );
+
   // Fetch bookmarked posts for the "Saved" tab (own profile only)
   const { data: bookmarksData, isLoading: bookmarksLoading } = useQuery(
     ['userBookmarks', currentUser?.userId],
@@ -70,6 +78,7 @@ const Profile = () => {
   const user = userData?.data;
   const isOwnProfile = currentUser?.userId === userId;
   const stats = statsData?.data || { followerCount: 0, followingCount: 0, isFollowing: false };
+  const currentUserIsSubscribed = subscriptionData?.data?.isSubscribed ?? false;
 
   let posts = [];
   try {
@@ -114,6 +123,10 @@ const Profile = () => {
 
           {!isOwnProfile && (
             <div className="absolute right-4 flex gap-2" style={{ bottom: '10px' }}>
+              <SubscribeButton
+                isSubscribed={currentUserIsSubscribed}
+                compact
+              />
               <FollowButton
                 targetUserId={actualUserId}
                 isFollowing={stats.isFollowing}
@@ -138,13 +151,19 @@ const Profile = () => {
                 <span className="chip bg-amber-100 text-amber-700">Admin</span>
               )}
               {isOwnProfile && (
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="ml-auto p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                  title="Edit Profile"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
+                <>
+                  <SubscribeButton
+                    isSubscribed={currentUserIsSubscribed}
+                    compact
+                  />
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="ml-auto p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                    title="Edit Profile"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </>
               )}
             </div>
             {isOwnProfile && <p className="text-sm text-slate-500">{user?.email}</p>}

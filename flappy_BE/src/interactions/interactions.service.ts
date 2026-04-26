@@ -8,6 +8,7 @@ import { Post } from '../posts/schemas/post.schema';
 import { User } from '../users/schemas/user.schema';
 import { Reaction } from '../reactions/schemas/reaction.schema';
 import { CreateCommentDto, CreateReplyDto } from './dto/interaction.dto';
+import { RewardEngineService } from '../rewards/reward-engine.service';
 
 @Injectable()
 export class InteractionsService {
@@ -18,9 +19,13 @@ export class InteractionsService {
     @InjectModel(Post.name) private postModel: Model<Post>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Reaction.name) private reactionModel: Model<Reaction>,
+    private readonly rewardEngineService: RewardEngineService,
   ) {}
 
   async likePost(postId: string, userId: string) {
+    // Look up the post to get the owner ID for reward processing
+    const post = await this.postModel.findById(postId);
+
     // Check if user already liked the post
     const existingLike = await this.likeModel.findOne({ postId, userId });
     
@@ -28,6 +33,24 @@ export class InteractionsService {
       // Unlike the post
       await this.likeModel.deleteOne({ postId, userId });
       const likeCount = await this.likeModel.countDocuments({ postId });
+
+      // Reverse engagement rewards (deduct coins)
+      if (post) {
+        try {
+          await this.rewardEngineService.reverseEngagement({
+            engagerId: userId,
+            postId,
+            postOwnerId: post.userId,
+            eventType: 'like',
+          });
+        } catch (error) {
+          console.error('⚠️ [INTERACTIONS] Failed to reverse engagement reward', {
+            postId,
+            userId,
+            error: error.message,
+          });
+        }
+      }
       
       return { 
         message: 'Post unliked successfully',
@@ -39,6 +62,24 @@ export class InteractionsService {
       const like = new this.likeModel({ postId, userId });
       await like.save();
       const likeCount = await this.likeModel.countDocuments({ postId });
+
+      // Process engagement rewards (award coins)
+      if (post) {
+        try {
+          await this.rewardEngineService.processEngagement({
+            engagerId: userId,
+            postId,
+            postOwnerId: post.userId,
+            eventType: 'like',
+          });
+        } catch (error) {
+          console.error('⚠️ [INTERACTIONS] Failed to process engagement reward', {
+            postId,
+            userId,
+            error: error.message,
+          });
+        }
+      }
       
       return { 
         message: 'Post liked successfully',

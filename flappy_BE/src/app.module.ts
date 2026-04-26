@@ -13,6 +13,9 @@ import { ReactionsModule } from './reactions/reactions.module';
 import { SearchModule } from './search/search.module';
 import { FollowModule } from './follow/follow.module';
 import { FeatureFlagsModule } from './common/feature-flags.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { RewardsModule } from './rewards/rewards.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -33,6 +36,9 @@ import { FeatureFlagsModule } from './common/feature-flags.module';
     ReactionsModule,
     SearchModule,
     FollowModule,
+    SubscriptionsModule,
+    RewardsModule,
+    WalletModule,
   ],
   providers: [
     {

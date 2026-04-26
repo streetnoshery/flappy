@@ -211,6 +211,20 @@ export const searchAPI = {
   getTrendingTags: () => api.get('/search/trending-tags'),
 };
 
+// Subscriptions API
+export const subscriptionsAPI = {
+  toggleSubscription: () => api.post('/subscriptions/toggle'),
+  getSubscriptionStatus: (userId) => api.get(`/subscriptions/status/${userId}`),
+};
+
+// Wallet API
+export const walletAPI = {
+  getBalance: () => api.get('/wallet/balance'),
+  getTransactions: (page = 1, limit = 10) => api.get(`/wallet/transactions?page=${page}&limit=${limit}`),
+  requestConversion: (amount) => api.post('/wallet/convert', { amount }),
+  getThresholds: () => api.get('/wallet/thresholds'),
+};
+
 // Feature Flags API
 export const featureFlagsAPI = {
   getFeatureFlags: () => api.get('/feature-flags'),
