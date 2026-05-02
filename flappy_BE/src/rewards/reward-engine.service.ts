@@ -29,8 +29,6 @@ export interface RewardResult {
   transactions?: CoinTransaction[];
 }
 
-/** Coins credited to the user who performs the engagement */
-export const ENGAGER_REWARD = 1;
 /** Coins credited to the post owner when their post receives engagement */
 export const OWNER_REWARD = 2;
 
@@ -106,37 +104,21 @@ export class RewardEngineService {
       return { rewarded: false, reason: abuseResult.reason };
     }
 
-    // 4. Credit coins to both users using atomic $inc
-    await this.userModel.findOneAndUpdate(
-      { userId: engagerId },
-      { $inc: { coinBalance: ENGAGER_REWARD } },
-    );
-
+    // 4. Credit coins to post owner only using atomic $inc
     await this.userModel.findOneAndUpdate(
       { userId: postOwnerId },
       { $inc: { coinBalance: OWNER_REWARD } },
     );
 
-    console.log('💰 [REWARD_ENGINE] Coins credited', {
-      engagerId,
-      engagerCoins: ENGAGER_REWARD,
+    console.log('💰 [REWARD_ENGINE] Coins credited to post owner', {
       postOwnerId,
       ownerCoins: OWNER_REWARD,
     });
 
-    // 5. Record CoinTransaction entries for both parties
+    // 5. Record CoinTransaction entry for post owner
     const description = reactionType
       ? `${eventType} (${reactionType}) on post ${postId}`
       : `${eventType} on post ${postId}`;
-
-    const engagerTransaction = await this.coinTransactionModel.create({
-      userId: engagerId,
-      amount: ENGAGER_REWARD,
-      eventType: 'engagement_earned',
-      relatedPostId: postId,
-      relatedUserId: postOwnerId,
-      description: `Earned coins for ${description}`,
-    });
 
     const ownerTransaction = await this.coinTransactionModel.create({
       userId: postOwnerId,
@@ -147,8 +129,7 @@ export class RewardEngineService {
       description: `Received coins from ${description}`,
     });
 
-    console.log('📝 [REWARD_ENGINE] Transactions recorded', {
-      engagerTransactionId: engagerTransaction._id,
+    console.log('📝 [REWARD_ENGINE] Transaction recorded', {
       ownerTransactionId: ownerTransaction._id,
     });
 
@@ -168,9 +149,9 @@ export class RewardEngineService {
 
     return {
       rewarded: true,
-      engagerCoins: ENGAGER_REWARD,
+      engagerCoins: 0,
       ownerCoins: OWNER_REWARD,
-      transactions: [engagerTransaction, ownerTransaction],
+      transactions: [ownerTransaction],
     };
   }
 
@@ -189,37 +170,21 @@ export class RewardEngineService {
       reactionType,
     });
 
-    // Deduct coins from both users using atomic $inc with negative amounts
-    await this.userModel.findOneAndUpdate(
-      { userId: engagerId },
-      { $inc: { coinBalance: -ENGAGER_REWARD } },
-    );
-
+    // Deduct coins from post owner only using atomic $inc with negative amount
     await this.userModel.findOneAndUpdate(
       { userId: postOwnerId },
       { $inc: { coinBalance: -OWNER_REWARD } },
     );
 
-    console.log('💸 [REWARD_ENGINE] Coins deducted', {
-      engagerId,
-      engagerDeducted: ENGAGER_REWARD,
+    console.log('💸 [REWARD_ENGINE] Coins deducted from post owner', {
       postOwnerId,
       ownerDeducted: OWNER_REWARD,
     });
 
-    // Record reversal CoinTransaction entries
+    // Record reversal CoinTransaction entry for post owner
     const description = reactionType
       ? `${eventType} (${reactionType}) reversal on post ${postId}`
       : `${eventType} reversal on post ${postId}`;
-
-    const engagerReversal = await this.coinTransactionModel.create({
-      userId: engagerId,
-      amount: -ENGAGER_REWARD,
-      eventType: 'engagement_reversed',
-      relatedPostId: postId,
-      relatedUserId: postOwnerId,
-      description: `Reversed coins for ${description}`,
-    });
 
     const ownerReversal = await this.coinTransactionModel.create({
       userId: postOwnerId,
@@ -230,8 +195,7 @@ export class RewardEngineService {
       description: `Reversed coins from ${description}`,
     });
 
-    console.log('📝 [REWARD_ENGINE] Reversal transactions recorded', {
-      engagerReversalId: engagerReversal._id,
+    console.log('📝 [REWARD_ENGINE] Reversal transaction recorded', {
       ownerReversalId: ownerReversal._id,
     });
 
@@ -243,9 +207,9 @@ export class RewardEngineService {
 
     return {
       rewarded: true,
-      engagerCoins: -ENGAGER_REWARD,
+      engagerCoins: 0,
       ownerCoins: -OWNER_REWARD,
-      transactions: [engagerReversal, ownerReversal],
+      transactions: [ownerReversal],
     };
   }
 }

@@ -1,7 +1,6 @@
 import {
   RewardEngineService,
   EngagementEvent,
-  ENGAGER_REWARD,
   OWNER_REWARD,
 } from '../reward-engine.service';
 
@@ -10,6 +9,8 @@ import {
  *
  * We construct the service with in-memory mocks for all dependencies,
  * bypassing NestJS DI, and verify processEngagement / reverseEngagement logic.
+ *
+ * Reward rule: only the post owner receives coins. The engaging user does not.
  */
 
 // ── Mock factory ─────────────────────────────────────────────────────
@@ -24,11 +25,8 @@ interface MockDeps {
 function buildService(deps: MockDeps = {}) {
   const { subscribedUsers = [], abuseCheckResult = { allowed: true } } = deps;
 
-  // Track coin balance updates
   const balanceUpdates: Array<{ userId: string; amount: number }> = [];
-  // Track created transactions
   const createdTransactions: any[] = [];
-  // Track daily engagement count upserts
   const dailyCountUpserts: Array<{
     userId: string;
     date: string;
@@ -159,7 +157,7 @@ describe('RewardEngineService', () => {
       expect(result.reason).toBe('rate_limit');
     });
 
-    it('should credit coins to both parties when eligible', async () => {
+    it('should credit coins only to post owner when eligible', async () => {
       const { service, tracking } = buildService({
         subscribedUsers: ['engager1', 'owner1'],
       });
@@ -167,46 +165,46 @@ describe('RewardEngineService', () => {
       const result = await service.processEngagement(makeEvent());
 
       expect(result.rewarded).toBe(true);
-      expect(result.engagerCoins).toBe(ENGAGER_REWARD);
+      expect(result.engagerCoins).toBe(0);
       expect(result.ownerCoins).toBe(OWNER_REWARD);
 
-      // Verify atomic $inc updates
-      expect(tracking.balanceUpdates).toEqual(
-        expect.arrayContaining([
-          { userId: 'engager1', amount: ENGAGER_REWARD },
-          { userId: 'owner1', amount: OWNER_REWARD },
-        ]),
-      );
+      // Only post owner gets a balance update
+      expect(tracking.balanceUpdates).toHaveLength(1);
+      expect(tracking.balanceUpdates[0]).toEqual({
+        userId: 'owner1',
+        amount: OWNER_REWARD,
+      });
     });
 
-    it('should create two CoinTransaction entries on success', async () => {
+    it('should create one CoinTransaction entry (post owner only) on success', async () => {
       const { service, tracking } = buildService({
         subscribedUsers: ['engager1', 'owner1'],
       });
 
       const result = await service.processEngagement(makeEvent());
 
-      expect(result.transactions).toHaveLength(2);
-      expect(tracking.createdTransactions).toHaveLength(2);
+      expect(result.transactions).toHaveLength(1);
+      expect(tracking.createdTransactions).toHaveLength(1);
 
-      const engagerTxn = tracking.createdTransactions.find(
-        (t) => t.userId === 'engager1',
-      );
-      const ownerTxn = tracking.createdTransactions.find(
-        (t) => t.userId === 'owner1',
-      );
-
-      expect(engagerTxn).toBeDefined();
-      expect(engagerTxn.eventType).toBe('engagement_earned');
-      expect(engagerTxn.amount).toBe(ENGAGER_REWARD);
-      expect(engagerTxn.relatedPostId).toBe('post1');
-      expect(engagerTxn.relatedUserId).toBe('owner1');
-
-      expect(ownerTxn).toBeDefined();
+      const ownerTxn = tracking.createdTransactions[0];
+      expect(ownerTxn.userId).toBe('owner1');
       expect(ownerTxn.eventType).toBe('engagement_received');
       expect(ownerTxn.amount).toBe(OWNER_REWARD);
       expect(ownerTxn.relatedPostId).toBe('post1');
       expect(ownerTxn.relatedUserId).toBe('engager1');
+    });
+
+    it('should not create any transaction for the engager', async () => {
+      const { service, tracking } = buildService({
+        subscribedUsers: ['engager1', 'owner1'],
+      });
+
+      await service.processEngagement(makeEvent());
+
+      const engagerTxns = tracking.createdTransactions.filter(
+        (t) => t.userId === 'engager1',
+      );
+      expect(engagerTxns).toHaveLength(0);
     });
 
     it('should increment daily engagement count for the engager', async () => {
@@ -267,50 +265,39 @@ describe('RewardEngineService', () => {
         makeEvent({ eventType: 'reaction', reactionType: 'heart' }),
       );
 
-      const engagerTxn = tracking.createdTransactions.find(
-        (t) => t.userId === 'engager1',
-      );
-      expect(engagerTxn.description).toContain('heart');
+      const ownerTxn = tracking.createdTransactions[0];
+      expect(ownerTxn.description).toContain('heart');
     });
   });
 
   describe('reverseEngagement', () => {
-    it('should deduct coins from both parties', async () => {
+    it('should deduct coins only from post owner', async () => {
       const { service, tracking } = buildService();
 
       const result = await service.reverseEngagement(makeEvent());
 
       expect(result.rewarded).toBe(true);
-      expect(result.engagerCoins).toBe(-ENGAGER_REWARD);
+      expect(result.engagerCoins).toBe(0);
       expect(result.ownerCoins).toBe(-OWNER_REWARD);
 
-      expect(tracking.balanceUpdates).toEqual(
-        expect.arrayContaining([
-          { userId: 'engager1', amount: -ENGAGER_REWARD },
-          { userId: 'owner1', amount: -OWNER_REWARD },
-        ]),
-      );
+      // Only post owner gets a balance deduction
+      expect(tracking.balanceUpdates).toHaveLength(1);
+      expect(tracking.balanceUpdates[0]).toEqual({
+        userId: 'owner1',
+        amount: -OWNER_REWARD,
+      });
     });
 
-    it('should create reversal CoinTransaction entries', async () => {
+    it('should create one reversal CoinTransaction entry (post owner only)', async () => {
       const { service, tracking } = buildService();
 
       const result = await service.reverseEngagement(makeEvent());
 
-      expect(result.transactions).toHaveLength(2);
-      expect(tracking.createdTransactions).toHaveLength(2);
+      expect(result.transactions).toHaveLength(1);
+      expect(tracking.createdTransactions).toHaveLength(1);
 
-      const engagerReversal = tracking.createdTransactions.find(
-        (t) => t.userId === 'engager1',
-      );
-      const ownerReversal = tracking.createdTransactions.find(
-        (t) => t.userId === 'owner1',
-      );
-
-      expect(engagerReversal.eventType).toBe('engagement_reversed');
-      expect(engagerReversal.amount).toBe(-ENGAGER_REWARD);
-      expect(engagerReversal.relatedPostId).toBe('post1');
-
+      const ownerReversal = tracking.createdTransactions[0];
+      expect(ownerReversal.userId).toBe('owner1');
       expect(ownerReversal.eventType).toBe('engagement_reversed');
       expect(ownerReversal.amount).toBe(-OWNER_REWARD);
       expect(ownerReversal.relatedPostId).toBe('post1');
@@ -323,10 +310,8 @@ describe('RewardEngineService', () => {
         makeEvent({ eventType: 'reaction', reactionType: 'fire' }),
       );
 
-      const engagerReversal = tracking.createdTransactions.find(
-        (t) => t.userId === 'engager1',
-      );
-      expect(engagerReversal.description).toContain('fire');
+      const ownerReversal = tracking.createdTransactions[0];
+      expect(ownerReversal.description).toContain('fire');
     });
   });
 });
