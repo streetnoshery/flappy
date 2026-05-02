@@ -37,11 +37,42 @@ const hashString = (str = '') => {
 };
 
 /**
- * Get the gradient config for a given userId
- * Always returns the same gradient for the same userId
+ * Get a session-unique gradient index for a userId.
+ * Each login/session produces a different color mix.
+ * The index is cached in sessionStorage so it stays consistent
+ * within a single session but changes on next login.
+ */
+const getSessionGradientIndex = (userId = '') => {
+  const key = `profile_gradient_${userId}`;
+  try {
+    const stored = sessionStorage.getItem(key);
+    if (stored !== null) return parseInt(stored, 10);
+  } catch { /* SSR / private browsing fallback */ }
+
+  // Mix userId hash with a per-session random seed
+  let sessionSeed;
+  try {
+    sessionSeed = sessionStorage.getItem('profile_session_seed');
+    if (!sessionSeed) {
+      sessionSeed = String(Math.floor(Math.random() * 1_000_000));
+      sessionStorage.setItem('profile_session_seed', sessionSeed);
+    }
+  } catch {
+    sessionSeed = String(Date.now());
+  }
+
+  const index = hashString(userId + sessionSeed) % GRADIENTS.length;
+  try { sessionStorage.setItem(key, String(index)); } catch { /* ignore */ }
+  return index;
+};
+
+/**
+ * Get the gradient config for a given userId.
+ * Returns a different gradient each session (login) while staying
+ * consistent within the same session.
  */
 export const getProfileGradient = (userId = '') => {
-  const index = hashString(userId) % GRADIENTS.length;
+  const index = getSessionGradientIndex(userId);
   return GRADIENTS[index];
 };
 

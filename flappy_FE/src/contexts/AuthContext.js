@@ -60,6 +60,8 @@ export const AuthProvider = ({ children }) => {
     const { user, accessToken } = response.data;
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('accessToken', accessToken);
+    // Reset profile color seed so each login gets fresh colors
+    try { sessionStorage.removeItem('profile_session_seed'); } catch { /* ignore */ }
     setUser(user);
     return response.data;
   };
@@ -86,6 +88,8 @@ export const AuthProvider = ({ children }) => {
     const { user, accessToken } = response.data;
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('accessToken', accessToken);
+    // Reset profile color seed so each login gets fresh colors
+    try { sessionStorage.removeItem('profile_session_seed'); } catch { /* ignore */ }
     setUser(user);
     return response.data;
   };
@@ -93,6 +97,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
+    // Clear profile color seed so next login gets fresh colors
+    try { sessionStorage.removeItem('profile_session_seed'); } catch { /* ignore */ }
     setUser(null);
   };
 

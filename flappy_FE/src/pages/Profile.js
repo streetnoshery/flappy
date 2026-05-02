@@ -104,7 +104,7 @@ const Profile = () => {
     <div className="max-w-2xl mx-auto space-y-4">
       {/* ── Profile header card ─────────────────────── */}
       <div className="card overflow-hidden">
-        <div className="relative" style={{ paddingBottom: '44px' }}>
+        <div className="relative" style={{ paddingBottom: '50px' }}>
           <div className="h-28" style={getHeaderStyle(user?.userId)} />
 
           <div className="absolute left-5" style={{ bottom: '0px' }}>
@@ -122,7 +122,7 @@ const Profile = () => {
           </div>
 
           {!isOwnProfile && (
-            <div className="absolute right-4 flex gap-2" style={{ bottom: '10px' }}>
+            <div className="absolute right-3 sm:right-4 flex gap-1.5 sm:gap-2 flex-wrap justify-end" style={{ bottom: '10px' }}>
               <SubscribeButton
                 isSubscribed={currentUserIsSubscribed}
                 compact
@@ -146,27 +146,44 @@ const Profile = () => {
         <div className="px-5 pt-3 pb-5">
           <div className="space-y-1 mb-4">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">{user?.username}</h1>
+              <h1 className="text-xl font-bold text-slate-900 min-w-0 truncate">{user?.username}</h1>
               {user?.role === 'admin' && (
                 <span className="chip bg-amber-100 text-amber-700">Admin</span>
               )}
+              {/* Desktop: show buttons inline next to username */}
               {isOwnProfile && (
-                <>
+                <div className="hidden sm:flex items-center gap-2 ml-auto shrink-0">
                   <SubscribeButton
                     isSubscribed={currentUserIsSubscribed}
                     compact
                   />
                   <button
                     onClick={() => setShowEditModal(true)}
-                    className="ml-auto p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                    className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
                     title="Edit Profile"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
-                </>
+                </div>
               )}
             </div>
             {isOwnProfile && <p className="text-sm text-slate-500">{user?.email}</p>}
+            {/* Mobile: show buttons below username and email */}
+            {isOwnProfile && (
+              <div className="flex sm:hidden items-center gap-2 pt-2">
+                <SubscribeButton
+                  isSubscribed={currentUserIsSubscribed}
+                  compact
+                />
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                  title="Edit Profile"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             {user?.bio && <p className="text-sm text-slate-700 leading-relaxed">{user.bio}</p>}
             {user?.website && (
               <a href={user.website} target="_blank" rel="noopener noreferrer"
