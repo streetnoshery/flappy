@@ -242,7 +242,6 @@ export class AuthService {
     }
 
     const otp = await this.emailService.sendOtpViaEmail(user.email);
-    console.log(`OTP: ${otp}`)
     this.otpStore.storeOtp(user.email, otp);
 
     this.logger.log(`OTP resent to ${this.maskEmail(user.email)}`);
