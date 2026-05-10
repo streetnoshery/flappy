@@ -11,6 +11,10 @@ import {
   DailyEngagementCount,
   DailyEngagementCountSchema,
 } from './schemas/daily-engagement-count.schema';
+import {
+  PostCoinLedger,
+  PostCoinLedgerSchema,
+} from './schemas/post-coin-ledger.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
@@ -20,6 +24,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
       { name: CoinTransaction.name, schema: CoinTransactionSchema },
       { name: AbuseFlag.name, schema: AbuseFlagSchema },
       { name: DailyEngagementCount.name, schema: DailyEngagementCountSchema },
+      { name: PostCoinLedger.name, schema: PostCoinLedgerSchema },
       { name: User.name, schema: UserSchema },
     ]),
     SubscriptionsModule,

@@ -8,6 +8,7 @@ const EVENT_TYPE_LABELS = {
   engagement_received: 'Engagement Received',
   engagement_reversed: 'Engagement Reversed',
   conversion: 'Conversion',
+  post_threshold_reached: '🏆 Post Reached 1,000 Coins',
 };
 
 const formatTimestamp = (dateString) => {
@@ -41,9 +42,9 @@ const TransactionList = () => {
     { keepPreviousData: true }
   );
 
-  const transactions = data?.data?.transactions || [];
-  const totalPages = data?.data?.totalPages || 1;
+  const transactions = data?.data?.items || [];
   const total = data?.data?.total || 0;
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE) || 1;
 
   if (isLoading && !data) {
     return (

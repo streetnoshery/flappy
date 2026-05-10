@@ -219,10 +219,11 @@ export const subscriptionsAPI = {
 
 // Wallet API
 export const walletAPI = {
-  getBalance: () => api.get('/wallet/balance'),
-  getTransactions: (page = 1, limit = 10) => api.get(`/wallet/transactions?page=${page}&limit=${limit}`),
-  requestConversion: (amount) => api.post('/wallet/convert', { amount }),
-  getThresholds: () => api.get('/wallet/thresholds'),
+  getSummary: () => api.get('/wallet/summary'),
+  getPostEarnings: (page = 1, pageSize = 20) => api.get(`/wallet/posts?page=${page}&pageSize=${pageSize}`),
+  getTransactions: (page = 1, pageSize = 10, postId) =>
+    api.get(`/wallet/transactions?page=${page}&pageSize=${pageSize}${postId ? `&postId=${postId}` : ''}`),
+  convertPostCoins: (postId) => api.post(`/wallet/convert/${postId}`),
 };
 
 // Feature Flags API

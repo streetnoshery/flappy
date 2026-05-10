@@ -18,6 +18,7 @@ export class CoinTransaction {
       'engagement_received',
       'engagement_reversed',
       'conversion',
+      'post_threshold_reached',
     ],
   })
   eventType: string;
@@ -27,6 +28,9 @@ export class CoinTransaction {
 
   @Prop()
   relatedUserId: string;
+
+  @Prop()
+  postCoinBalanceAfter: number;
 
   @Prop()
   description: string;

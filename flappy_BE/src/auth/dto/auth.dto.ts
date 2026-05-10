@@ -2,6 +2,9 @@ import { IsEmail, IsString, IsOptional, MinLength, Matches, Length } from 'class
 
 export class SignupDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
+  @Matches(/^[a-zA-Z0-9._%+\-]+@gmail\.(com|in)$/, {
+    message: 'Only Gmail addresses are allowed (gmail.com or gmail.in)',
+  })
   email: string;
 
   @IsOptional()

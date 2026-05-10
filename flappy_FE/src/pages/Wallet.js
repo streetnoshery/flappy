@@ -4,8 +4,8 @@ import { Wallet as WalletIcon, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { walletAPI, subscriptionsAPI } from '../services/api';
 import CoinBalanceDisplay from '../components/wallet/CoinBalanceDisplay';
+import PostEarningsList from '../components/wallet/PostEarningsList';
 import TransactionList from '../components/wallet/TransactionList';
-import ConversionForm from '../components/wallet/ConversionForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,14 +21,18 @@ const Wallet = () => {
 
   const isSubscribed = subscriptionData?.data?.isSubscribed ?? false;
 
-  const { data: balanceData, isLoading: balanceLoading } = useQuery(
-    'walletBalance',
-    () => walletAPI.getBalance(),
+  const { data: summaryData, isLoading: summaryLoading } = useQuery(
+    'walletSummary',
+    () => walletAPI.getSummary(),
     { enabled: isSubscribed, staleTime: 10000 }
   );
 
-  const balance = balanceData?.data?.balance ?? 0;
-  const engagementCount = balanceData?.data?.engagementCount ?? 0;
+  const summary = summaryData?.data ?? {
+    withdrawableBalance: 0,
+    pendingBalance: 0,
+    thresholdReachedPostCount: 0,
+    totalPostCount: 0,
+  };
 
   if (subLoading) {
     return (
@@ -66,14 +70,14 @@ const Wallet = () => {
         <h1 className="text-xl font-bold text-slate-900">Wallet</h1>
       </div>
 
-      {balanceLoading ? (
+      {summaryLoading ? (
         <div className="flex justify-center py-10">
           <LoadingSpinner />
         </div>
       ) : (
         <>
-          <CoinBalanceDisplay balance={balance} />
-          <ConversionForm balance={balance} engagementCount={engagementCount} />
+          <CoinBalanceDisplay summary={summary} />
+          <PostEarningsList />
           <TransactionList />
         </>
       )}
