@@ -221,6 +221,7 @@ export const subscriptionsAPI = {
 export const walletAPI = {
   getSummary: () => api.get('/wallet/summary'),
   getPostEarnings: (page = 1, pageSize = 20) => api.get(`/wallet/posts?page=${page}&pageSize=${pageSize}`),
+  getPostCoins: (postId) => api.get(`/wallet/posts/${postId}/coins`),
   getTransactions: (page = 1, pageSize = 10, postId) =>
     api.get(`/wallet/transactions?page=${page}&pageSize=${pageSize}${postId ? `&postId=${postId}` : ''}`),
   convertPostCoins: (postId) => api.post(`/wallet/convert/${postId}`),

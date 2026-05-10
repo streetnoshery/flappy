@@ -30,6 +30,16 @@ export class WalletController {
     return this.walletService.getPostEarnings(userId, pageNum, pageSizeNum);
   }
 
+  /**
+   * GET /wallet/posts/:postId/coins
+   * Returns the coin balance for a specific post.
+   * Only the post owner should call this — the frontend enforces visibility.
+   */
+  @Get('posts/:postId/coins')
+  async getPostCoins(@Param('postId') postId: string) {
+    return this.walletService.getPostCoinBalance(postId);
+  }
+
   @Post('convert/:postId')
   async convertPostCoins(@Request() req, @Param('postId') postId: string) {
     const userId = req.user.userId;

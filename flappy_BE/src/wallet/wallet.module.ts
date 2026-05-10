@@ -10,12 +10,14 @@ import {
   CoinTransaction,
   CoinTransactionSchema,
 } from '../rewards/schemas/coin-transaction.schema';
+import { Post, PostSchema } from '../posts/schemas/post.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: PostCoinLedger.name, schema: PostCoinLedgerSchema },
       { name: CoinTransaction.name, schema: CoinTransactionSchema },
+      { name: Post.name, schema: PostSchema },
     ]),
   ],
   controllers: [WalletController],

@@ -15,6 +15,7 @@ import {
   CoinTransaction,
   CoinTransactionDocument,
 } from '../rewards/schemas/coin-transaction.schema';
+import { Post } from '../posts/schemas/post.schema';
 
 export interface WalletSummary {
   withdrawableBalance: number;
@@ -60,28 +61,89 @@ export class WalletService {
     private postCoinLedgerModel: Model<PostCoinLedgerDocument>,
     @InjectModel(CoinTransaction.name)
     private coinTransactionModel: Model<CoinTransactionDocument>,
+    @InjectModel(Post.name)
+    private postModel: Model<Post>,
   ) {}
 
   /**
    * Get wallet summary for a user.
    * Aggregates PostCoinLedger records to compute withdrawable and pending balances.
+   * Falls back to CoinTransaction aggregation if no ledger records exist yet.
    */
   async getWalletSummary(userId: string): Promise<WalletSummary> {
     const records = await this.postCoinLedgerModel
       .find({ ownerId: userId })
       .exec();
 
+    // If ledger records exist, use them as the source of truth
+    if (records.length > 0) {
+      let withdrawableBalance = 0;
+      let pendingBalance = 0;
+      let thresholdReachedPostCount = 0;
+      const totalPostCount = records.length;
+
+      for (const record of records) {
+        if (record.thresholdReached) {
+          withdrawableBalance += record.coinBalance;
+          thresholdReachedPostCount++;
+        } else {
+          pendingBalance += record.coinBalance;
+        }
+      }
+
+      return {
+        withdrawableBalance,
+        pendingBalance,
+        thresholdReachedPostCount,
+        totalPostCount,
+      };
+    }
+
+    // No ledger records yet — fall back to CoinTransaction aggregation.
+    // First find all posts owned by this user, then sum transactions per post.
+    const userPosts = await this.postModel
+      .find({ userId }, '_id')
+      .lean()
+      .exec();
+
+    if (userPosts.length === 0) {
+      return {
+        withdrawableBalance: 0,
+        pendingBalance: 0,
+        thresholdReachedPostCount: 0,
+        totalPostCount: 0,
+      };
+    }
+
+    const postIds = userPosts.map((p) => p._id.toString());
+
+    const txAgg = await this.coinTransactionModel.aggregate([
+      {
+        $match: {
+          relatedPostId: { $in: postIds },
+          eventType: { $in: ['engagement_received', 'engagement_reversed'] },
+        },
+      },
+      {
+        $group: {
+          _id: '$relatedPostId',
+          total: { $sum: '$amount' },
+        },
+      },
+    ]);
+
     let withdrawableBalance = 0;
     let pendingBalance = 0;
     let thresholdReachedPostCount = 0;
-    const totalPostCount = records.length;
+    const totalPostCount = txAgg.length;
 
-    for (const record of records) {
-      if (record.thresholdReached) {
-        withdrawableBalance += record.coinBalance;
+    for (const row of txAgg) {
+      const balance = Math.max(0, row.total);
+      if (balance >= 1000) {
+        withdrawableBalance += balance;
         thresholdReachedPostCount++;
       } else {
-        pendingBalance += record.coinBalance;
+        pendingBalance += balance;
       }
     }
 
@@ -90,6 +152,46 @@ export class WalletService {
       pendingBalance,
       thresholdReachedPostCount,
       totalPostCount,
+    };
+  }
+
+  /**
+   * Get the coin balance for a single post (owner-only use).
+   * Falls back to aggregating CoinTransaction records if no PostCoinLedger
+   * record exists yet (handles coins earned before the ledger was introduced).
+   */
+  async getPostCoinBalance(
+    postId: string,
+  ): Promise<{ postId: string; coinBalance: number; thresholdReached: boolean }> {
+    const record = await this.postCoinLedgerModel
+      .findOne({ postId })
+      .exec();
+
+    if (record) {
+      return {
+        postId: record.postId,
+        coinBalance: record.coinBalance,
+        thresholdReached: record.thresholdReached,
+      };
+    }
+
+    // No ledger record yet — aggregate from CoinTransaction history
+    const result = await this.coinTransactionModel.aggregate([
+      {
+        $match: {
+          relatedPostId: postId,
+          eventType: { $in: ['engagement_received', 'engagement_reversed'] },
+        },
+      },
+      { $group: { _id: '$relatedPostId', total: { $sum: '$amount' } } },
+    ]);
+
+    const coinBalance = result.length > 0 ? Math.max(0, result[0].total) : 0;
+
+    return {
+      postId,
+      coinBalance,
+      thresholdReached: coinBalance >= 1000,
     };
   }
 
