@@ -6,6 +6,7 @@ import { usersAPI, postsAPI, interactionsAPI, subscriptionsAPI } from '../servic
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProfilePostCard from '../components/ProfilePostCard';
+import PostCard from '../components/PostCard';
 import ReportModal from '../components/ReportModal';
 import SkeletonCard from '../components/SkeletonCard';
 import UserAvatar from '../components/UserAvatar';
@@ -45,7 +46,7 @@ const Profile = () => {
 
   const { data: postsData, isLoading: postsLoading } = useQuery(
     ['userPosts', actualUserId],
-    () => postsAPI.getPostsByUserId(actualUserId),
+    () => postsAPI.getPostsByUserId(actualUserId, currentUser?.userId),
     { enabled: !!actualUserId }
   );
 
@@ -240,7 +241,7 @@ const Profile = () => {
               <p className="text-sm text-slate-500">No posts yet</p>
             </div>
           ) : (
-            posts.map(post => <ProfilePostCard key={post._id} post={post} />)
+            posts.map(post => <PostCard key={post._id} post={post} />)
           )}
         </div>
       )}
@@ -263,7 +264,7 @@ const Profile = () => {
           ) : (
             bookmarks.map(post => (
               <div key={post._id} className="relative">
-                <ProfilePostCard post={post} />
+                <PostCard post={post} />
                 {post.bookmarkedAt && (
                   <div className="absolute top-2 right-2">
                     <div className="bg-primary-100 text-primary-600 px-2 py-1 rounded-full text-xs font-medium">
