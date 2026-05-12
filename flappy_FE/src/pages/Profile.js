@@ -124,10 +124,6 @@ const Profile = () => {
 
           {!isOwnProfile && (
             <div className="absolute right-3 sm:right-4 flex gap-1.5 sm:gap-2 flex-wrap justify-end" style={{ bottom: '10px' }}>
-              <SubscribeButton
-                isSubscribed={currentUserIsSubscribed}
-                compact
-              />
               <FollowButton
                 targetUserId={actualUserId}
                 isFollowing={stats.isFollowing}
