@@ -43,6 +43,18 @@ export class User extends Document {
 
   @Prop()
   resetPasswordExpires: Date;
+
+  @Prop({ default: 0 })
+  coinBalance: number;
+
+  @Prop({ default: false })
+  isSubscribed: boolean;
+
+  @Prop()
+  subscribedAt: Date;
+
+  @Prop({ default: false })
+  rewardsSuspended: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

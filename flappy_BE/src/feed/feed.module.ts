@@ -8,6 +8,7 @@ import { Like, LikeSchema } from '../interactions/schemas/like.schema';
 import { Comment, CommentSchema } from '../interactions/schemas/comment.schema';
 import { Bookmark, BookmarkSchema } from '../interactions/schemas/bookmark.schema';
 import { Reaction, ReactionSchema } from '../reactions/schemas/reaction.schema';
+import { FollowModule } from '../follow/follow.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { Reaction, ReactionSchema } from '../reactions/schemas/reaction.schema';
       { name: Bookmark.name, schema: BookmarkSchema },
       { name: Reaction.name, schema: ReactionSchema }
     ]),
+    FollowModule,
   ],
   controllers: [FeedController],
   providers: [FeedService],

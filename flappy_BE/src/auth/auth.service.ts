@@ -9,6 +9,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { JwtService } from '@nestjs/jwt';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -20,10 +21,12 @@ import {
   VerifyOtpDto,
   ResendOtpDto,
   ForgotPasswordDto,
+  VerifyResetOtpDto,
   ResetPasswordDto,
 } from './dto/auth.dto';
 import { EmailService } from './email.service';
 import { OtpStoreService } from './otp-store.service';
+import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
 export class AuthService {
@@ -31,6 +34,7 @@ export class AuthService {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
+    private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
     private readonly otpStore: OtpStoreService,
   ) {}
@@ -114,8 +118,16 @@ export class AuthService {
     await user.save();
     this.logger.log(`User created after OTP verification: ${user.username} (${user.email})`);
 
+    // Issue JWT for the newly created user
+    const payload: JwtPayload = {
+      sub: user.userId,
+      email: user.email,
+    };
+    const accessToken = this.jwtService.sign(payload);
+
     return {
       message: 'Email verified successfully. Welcome to Flappy!',
+      accessToken,
       user: {
         userId: user.userId,
         id: user._id,
@@ -190,8 +202,16 @@ export class AuthService {
 
     this.logger.log(`OTP verified, login complete for ${user.username}`);
 
+    // Issue JWT — sub = userId (unique identifier)
+    const payload: JwtPayload = {
+      sub: user.userId,
+      email: user.email,
+    };
+    const accessToken = this.jwtService.sign(payload);
+
     return {
       message: 'Login successful',
+      accessToken,
       user: {
         userId: user.userId,
         id: user._id,
@@ -230,55 +250,99 @@ export class AuthService {
     return { message: 'A new OTP has been sent to your email.' };
   }
 
+  /**
+   * Forgot Password — Step 1.
+   * Accepts the user's EMAIL. Sends an OTP to that address.
+   * Never reveals whether the account exists (prevents user enumeration).
+   */
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
-    const { username } = forgotPasswordDto;
+    const { email } = forgotPasswordDto;
 
-    const user = await this.userModel.findOne({ username });
+    const rateLimitSeconds = this.otpStore.checkRateLimit(`reset:${email}`);
+    if (rateLimitSeconds > 0) {
+      throw new HttpException(
+        `Too many requests. Try again in ${rateLimitSeconds} seconds.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const user = await this.userModel.findOne({ email });
+
+    if (user) {
+      // Only send OTP if account exists — but always return the same response
+      const otp = await this.emailService.sendOtpViaEmail(email);
+      this.otpStore.storeOtp(`reset:${email}`, otp);
+      this.logger.log(`Password reset OTP sent to ${this.maskEmail(email)}`);
+    }
+
+    // Always return the same response to prevent user enumeration
+    return {
+      message: 'If this email is registered, a reset OTP has been sent.',
+      email: this.maskEmail(email),
+    };
+  }
+
+  /**
+   * Forgot Password — Step 2.
+   * Verifies the OTP sent to the email. On success, issues a single-use
+   * reset token (stored hashed in memory, valid 15 min) returned to the client.
+   * The client must present this token in step 3 — it is NOT stored in MongoDB.
+   */
+  async verifyResetOtp(dto: VerifyResetOtpDto) {
+    const { email, otp } = dto;
+
+    const result = this.otpStore.verifyOtp(`reset:${email}`, otp);
+    if (!result.valid) {
+      throw new UnauthorizedException(result.message);
+    }
+
+    // Verify the user still exists
+    const user = await this.userModel.findOne({ email });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
+    // Generate a cryptographically strong one-time reset token
+    const plainToken = crypto.randomBytes(32).toString('hex'); // 64-char hex
+    this.otpStore.storeResetToken(email, plainToken);
 
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = resetTokenExpiry;
-    await user.save();
+    this.logger.log(`Reset OTP verified, reset token issued for ${this.maskEmail(email)}`);
 
     return {
-      message: 'Password reset token generated successfully',
-      resetToken,
-      expiresAt: resetTokenExpiry,
+      message: 'OTP verified. Use the resetToken to set your new password within 15 minutes.',
+      resetToken: plainToken,
     };
   }
 
+  /**
+   * Forgot Password — Step 3.
+   * Accepts email + resetToken (from step 2) + newPassword.
+   * Verifies the token is valid, single-use, and not expired before resetting.
+   * Does NOT accept username — email is the identity anchor.
+   */
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    const { username, resetToken, newPassword } = resetPasswordDto;
+    const { email, resetToken, newPassword } = resetPasswordDto;
 
-    const user = await this.userModel.findOne({
-      username,
-      resetPasswordToken: resetToken,
-      resetPasswordExpires: { $gt: new Date() },
-    });
+    // Verify and consume the reset token from OtpStore (single-use)
+    const result = this.otpStore.consumeResetToken(email, resetToken);
+    if (!result.valid) {
+      throw new BadRequestException(result.message);
+    }
 
+    const user = await this.userModel.findOne({ email });
     if (!user) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new NotFoundException('User not found');
     }
 
     user.password = await bcrypt.hash(newPassword, 12);
+    // Clear any legacy DB-stored reset tokens
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    return {
-      message: 'Password reset successfully',
-      user: {
-        userId: user.userId,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-      },
-    };
+    this.logger.log(`Password reset successfully for ${this.maskEmail(email)}`);
+
+    return { message: 'Password reset successfully. You can now log in with your new password.' };
   }
 
   /** Mask email: jo***@gmail.com */

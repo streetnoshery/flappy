@@ -2,6 +2,9 @@ import { IsEmail, IsString, IsOptional, MinLength, Matches, Length } from 'class
 
 export class SignupDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
+  @Matches(/^[a-zA-Z0-9._%+\-]+@gmail\.(com|in)$/, {
+    message: 'Only Gmail addresses are allowed (gmail.com or gmail.in)',
+  })
   email: string;
 
   @IsOptional()
@@ -55,18 +58,25 @@ export class RefreshTokenDto {
 }
 
 export class ForgotPasswordDto {
-  @IsString({ message: 'Username is required' })
-  @MinLength(3, { message: 'Username must be at least 3 characters long' })
-  username: string;
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  email: string;
+}
+
+export class VerifyResetOtpDto {
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  email: string;
+
+  @IsString({ message: 'OTP is required' })
+  @Matches(/^[0-9]{6}$/, { message: 'OTP must be exactly 6 digits' })
+  otp: string;
 }
 
 export class ResetPasswordDto {
-  @IsString({ message: 'Username is required' })
-  @MinLength(3, { message: 'Username must be at least 3 characters long' })
-  username: string;
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  email: string;
 
   @IsString({ message: 'Reset token is required' })
-  @MinLength(1, { message: 'Reset token cannot be empty' })
+  @MinLength(64, { message: 'Invalid reset token' })
   resetToken: string;
 
   @IsString()

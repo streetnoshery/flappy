@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Share2, Bookmark, MoreHorizontal, Trash2, MessageCircle } from 'lucide-react';
-import { interactionsAPI, reactionsAPI, postsAPI } from '../services/api';
-import { useMutation, useQueryClient } from 'react-query';
+import { Heart, Share2, Bookmark, MoreHorizontal, Trash2, MessageCircle, Coins } from 'lucide-react';
+import { interactionsAPI, reactionsAPI, postsAPI, walletAPI } from '../services/api';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import { useAuth } from '../contexts/AuthContext';
 import CommentSection from './CommentSection';
@@ -37,6 +37,18 @@ const PostCard = ({ post }) => {
 
   const isOwnPost = user?.userId === post.userId?.userId;
   const canDelete = post.canDelete || false;
+
+  // Fetch coin balance for this post — only when it's the owner viewing
+  const { data: coinData } = useQuery(
+    ['postCoins', post._id],
+    () => walletAPI.getPostCoins(post._id),
+    {
+      enabled: isOwnPost && !!post._id,
+      staleTime: 30000,
+      retry: false,
+    }
+  );
+  const postCoinBalance = coinData?.data?.coinBalance ?? 0;
 
   useEffect(() => {
     setIsLiked(post.isLiked || false);
@@ -102,7 +114,21 @@ const PostCard = ({ post }) => {
           </div>
         </Link>
 
-        {/* Menu */}
+        {/* Coin badge — only visible to the post owner */}
+        {isOwnPost && (
+          <div
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ml-auto mr-2 ${
+              coinData?.data?.thresholdReached
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-amber-50 text-amber-600'
+            }`}
+            title={coinData?.data?.thresholdReached ? 'Ready to convert!' : `${postCoinBalance} / 1,000 coins`}
+          >
+            <Coins className="w-3 h-3" />
+            <span>{postCoinBalance.toLocaleString()}</span>
+          </div>
+        )}
+
         <div className="relative menu-container">
           <button
             onClick={() => setShowMenu(!showMenu)}

@@ -11,7 +11,7 @@ import PasswordStrength from '../../components/auth/PasswordStrength';
 import OtpVerification from '../../components/auth/OtpVerification';
 import Logo from '../../components/Logo';
 
-const emailRegex    = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const emailRegex    = /^[a-zA-Z0-9._%+-]+@gmail\.(com|in)$/;
 const phoneRegex    = /^[0-9]{10}$/;
 const usernameRegex = /^[a-zA-Z0-9_]+$/;
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
@@ -88,11 +88,11 @@ const Signup = () => {
               label="Email"
               icon={Mail}
               type="email"
-              placeholder="you@example.com"
+              placeholder="you@gmail.com"
               error={errors.email?.message}
               {...register('email', {
                 required: 'Email is required',
-                pattern: { value: emailRegex, message: 'Enter a valid email address' },
+                pattern: { value: emailRegex, message: 'Only Gmail addresses are allowed (gmail.com or gmail.in)' },
               })}
             />
 

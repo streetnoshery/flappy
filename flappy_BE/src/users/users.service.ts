@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from './schemas/user.schema';
@@ -8,8 +8,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
-  async findById(id: string) {
-    console.log('👤 [USERS_SERVICE] Finding user by ID', { id });
+  async findById(id: string, viewerId?: string) {
+    console.log('👤 [USERS_SERVICE] Finding user by ID', { id, viewerId });
     
     // Try to find by userId first (UUID), then fallback to MongoDB _id
     let user;
@@ -35,12 +35,59 @@ export class UsersService {
       userId: user.userId, 
       username: user.username 
     });
-    
-    return user;
+
+    // Build profile response with subscription fields
+    const userObj = user.toObject();
+    const isOwnProfile = viewerId != null && (viewerId === user.userId || viewerId === user._id?.toString());
+
+    const profileResponse: Record<string, any> = {
+      ...userObj,
+      isSubscribed: user.isSubscribed ?? false,
+      subscribedAt: user.subscribedAt ?? null,
+    };
+
+    if (isOwnProfile) {
+      profileResponse.coinBalance = user.coinBalance ?? 0;
+    } else {
+      delete profileResponse.coinBalance;
+    }
+
+    return profileResponse;
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
     console.log('✏️ [USERS_SERVICE] Updating user', { id, updateFields: Object.keys(updateUserDto) });
+
+    // Check uniqueness of username, email, and phone before updating
+    const conflicts: string[] = [];
+
+    if (updateUserDto.username) {
+      const existingByUsername = await this.userModel.findOne({
+        username: updateUserDto.username,
+        userId: { $ne: id },
+      });
+      if (existingByUsername) conflicts.push('Username is already taken');
+    }
+
+    if (updateUserDto.email) {
+      const existingByEmail = await this.userModel.findOne({
+        email: updateUserDto.email,
+        userId: { $ne: id },
+      });
+      if (existingByEmail) conflicts.push('Email is already in use');
+    }
+
+    if (updateUserDto.phone) {
+      const existingByPhone = await this.userModel.findOne({
+        phone: updateUserDto.phone,
+        userId: { $ne: id },
+      });
+      if (existingByPhone) conflicts.push('Phone number is already in use');
+    }
+
+    if (conflicts.length > 0) {
+      throw new ConflictException(conflicts.join('. '));
+    }
     
     // Try to find by userId first (UUID), then fallback to MongoDB _id
     let user;
@@ -49,14 +96,12 @@ export class UsersService {
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
     
     if (isObjectId) {
-      // If it looks like a MongoDB ObjectId, update by _id
       user = await this.userModel.findByIdAndUpdate(
         id,
         updateUserDto,
         { new: true }
       ).select('-password');
     } else {
-      // Otherwise, update by userId (UUID)
       user = await this.userModel.findOneAndUpdate(
         { userId: id },
         updateUserDto,

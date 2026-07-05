@@ -8,6 +8,7 @@ import { Bookmark, BookmarkSchema } from './schemas/bookmark.schema';
 import { Post, PostSchema } from '../posts/schemas/post.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Reaction, ReactionSchema } from '../reactions/schemas/reaction.schema';
+import { RewardsModule } from '../rewards/rewards.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { Reaction, ReactionSchema } from '../reactions/schemas/reaction.schema';
       { name: User.name, schema: UserSchema },
       { name: Reaction.name, schema: ReactionSchema },
     ]),
+    RewardsModule,
   ],
   controllers: [InteractionsController],
   providers: [InteractionsService],

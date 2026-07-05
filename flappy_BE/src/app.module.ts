@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { UsersModule } from './users/users.module';
 import { PostsModule } from './posts/posts.module';
 import { FeedModule } from './feed/feed.module';
@@ -11,6 +13,10 @@ import { ReactionsModule } from './reactions/reactions.module';
 import { SearchModule } from './search/search.module';
 import { FollowModule } from './follow/follow.module';
 import { FeatureFlagsModule } from './common/feature-flags.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { RewardsModule } from './rewards/rewards.module';
+import { WalletModule } from './wallet/wallet.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -31,6 +37,16 @@ import { FeatureFlagsModule } from './common/feature-flags.module';
     ReactionsModule,
     SearchModule,
     FollowModule,
+    SubscriptionsModule,
+    RewardsModule,
+    WalletModule,
+    StorageModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
   ],
 })
 export class AppModule {}

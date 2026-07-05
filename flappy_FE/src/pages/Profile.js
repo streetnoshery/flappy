@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { Grid3X3, Bookmark, Activity, Globe, Flag } from 'lucide-react';
-import { usersAPI, postsAPI } from '../services/api';
+import { Grid3X3, Bookmark, Activity, Globe, Flag, Pencil } from 'lucide-react';
+import { usersAPI, postsAPI, interactionsAPI, subscriptionsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProfilePostCard from '../components/ProfilePostCard';
+import PostCard from '../components/PostCard';
 import ReportModal from '../components/ReportModal';
 import SkeletonCard from '../components/SkeletonCard';
 import UserAvatar from '../components/UserAvatar';
 import FollowButton from '../components/FollowButton';
+import SubscribeButton from '../components/subscription/SubscribeButton';
 import FollowListModal from '../components/FollowListModal';
+import EditProfileModal from '../components/EditProfileModal';
 import { getHeaderStyle, getAccentColor, getChipStyle } from '../utils/profileColors';
 
 const StatBadge = ({ value, label, onClick }) => (
@@ -30,9 +33,10 @@ const Profile = () => {
   const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('posts');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [followModal, setFollowModal] = useState({ open: false, type: 'followers' });
 
-  const { data: userData, isLoading: userLoading, error: userError } = useQuery(
+  const { data: userData, isLoading: userLoading, error: userError, refetch: refetchUser } = useQuery(
     ['user', userId],
     () => usersAPI.getUser(userId),
     { enabled: !!userId }
@@ -42,7 +46,7 @@ const Profile = () => {
 
   const { data: postsData, isLoading: postsLoading } = useQuery(
     ['userPosts', actualUserId],
-    () => postsAPI.getPostsByUserId(actualUserId),
+    () => postsAPI.getPostsByUserId(actualUserId, currentUser?.userId),
     { enabled: !!actualUserId }
   );
 
@@ -53,12 +57,29 @@ const Profile = () => {
     { enabled: !!actualUserId, staleTime: 10000 }
   );
 
+  // Fetch current user's subscription status for SubscribeButton
+  const { data: subscriptionData } = useQuery(
+    ['subscriptionStatus', currentUser?.userId],
+    () => subscriptionsAPI.getSubscriptionStatus(currentUser?.userId),
+    { enabled: !!currentUser?.userId, staleTime: 10000 }
+  );
+
+  // Fetch bookmarked posts for the "Saved" tab (own profile only)
+  const { data: bookmarksData, isLoading: bookmarksLoading } = useQuery(
+    ['userBookmarks', currentUser?.userId],
+    () => interactionsAPI.getUserBookmarks(currentUser?.userId),
+    {
+      enabled: !!currentUser?.userId && currentUser?.userId === userId && activeTab === 'saved',
+    }
+  );
+
   if (userLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   if (userError)   return <div className="card p-10 text-center text-red-500">Error loading profile</div>;
 
   const user = userData?.data;
   const isOwnProfile = currentUser?.userId === userId;
   const stats = statsData?.data || { followerCount: 0, followingCount: 0, isFollowing: false };
+  const currentUserIsSubscribed = subscriptionData?.data?.isSubscribed ?? false;
 
   let posts = [];
   try {
@@ -66,6 +87,13 @@ const Profile = () => {
     else if (postsData?.data && Array.isArray(postsData.data)) posts = postsData.data;
     else if (Array.isArray(postsData)) posts = postsData;
   } catch { posts = []; }
+
+  let bookmarks = [];
+  try {
+    if (bookmarksData?.data?.data && Array.isArray(bookmarksData.data.data)) bookmarks = bookmarksData.data.data;
+    else if (bookmarksData?.data && Array.isArray(bookmarksData.data)) bookmarks = bookmarksData.data;
+    else if (Array.isArray(bookmarksData)) bookmarks = bookmarksData;
+  } catch { bookmarks = []; }
 
   const tabs = [
     { id: 'posts',  label: 'Posts',    icon: Grid3X3 },
@@ -77,7 +105,7 @@ const Profile = () => {
     <div className="max-w-2xl mx-auto space-y-4">
       {/* ── Profile header card ─────────────────────── */}
       <div className="card overflow-hidden">
-        <div className="relative" style={{ paddingBottom: '44px' }}>
+        <div className="relative" style={{ paddingBottom: '50px' }}>
           <div className="h-28" style={getHeaderStyle(user?.userId)} />
 
           <div className="absolute left-5" style={{ bottom: '0px' }}>
@@ -95,7 +123,7 @@ const Profile = () => {
           </div>
 
           {!isOwnProfile && (
-            <div className="absolute right-4 flex gap-2" style={{ bottom: '10px' }}>
+            <div className="absolute right-3 sm:right-4 flex gap-1.5 sm:gap-2 flex-wrap justify-end" style={{ bottom: '10px' }}>
               <FollowButton
                 targetUserId={actualUserId}
                 isFollowing={stats.isFollowing}
@@ -115,12 +143,44 @@ const Profile = () => {
         <div className="px-5 pt-3 pb-5">
           <div className="space-y-1 mb-4">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">{user?.username}</h1>
+              <h1 className="text-xl font-bold text-slate-900 min-w-0 truncate">{user?.username}</h1>
               {user?.role === 'admin' && (
                 <span className="chip bg-amber-100 text-amber-700">Admin</span>
               )}
+              {/* Desktop: show buttons inline next to username */}
+              {isOwnProfile && (
+                <div className="hidden sm:flex items-center gap-2 ml-auto shrink-0">
+                  <SubscribeButton
+                    isSubscribed={currentUserIsSubscribed}
+                    compact
+                  />
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                    title="Edit Profile"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
-            <p className="text-sm text-slate-500">{user?.email}</p>
+            {isOwnProfile && <p className="text-sm text-slate-500">{user?.email}</p>}
+            {/* Mobile: show buttons below username and email */}
+            {isOwnProfile && (
+              <div className="flex sm:hidden items-center gap-2 pt-2">
+                <SubscribeButton
+                  isSubscribed={currentUserIsSubscribed}
+                  compact
+                />
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                  title="Edit Profile"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             {user?.bio && <p className="text-sm text-slate-700 leading-relaxed">{user.bio}</p>}
             {user?.website && (
               <a href={user.website} target="_blank" rel="noopener noreferrer"
@@ -177,15 +237,40 @@ const Profile = () => {
               <p className="text-sm text-slate-500">No posts yet</p>
             </div>
           ) : (
-            posts.map(post => <ProfilePostCard key={post._id} post={post} />)
+            posts.map(post => <PostCard key={post._id} post={post} />)
           )}
         </div>
       )}
 
       {activeTab === 'saved' && (
-        <div className="card p-10 text-center">
-          <Bookmark className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-slate-500">Saved posts will appear here</p>
+        <div className="space-y-4">
+          {!isOwnProfile ? (
+            <div className="card p-10 text-center">
+              <Bookmark className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">Saved posts are private</p>
+            </div>
+          ) : bookmarksLoading ? (
+            [1, 2].map(i => <SkeletonCard key={i} />)
+          ) : bookmarks.length === 0 ? (
+            <div className="card p-10 text-center">
+              <Bookmark className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">No saved posts yet</p>
+              <p className="text-xs text-slate-400 mt-1">Bookmark posts to see them here</p>
+            </div>
+          ) : (
+            bookmarks.map(post => (
+              <div key={post._id} className="relative">
+                <PostCard post={post} />
+                {post.bookmarkedAt && (
+                  <div className="absolute top-2 right-2">
+                    <div className="bg-primary-100 text-primary-600 px-2 py-1 rounded-full text-xs font-medium">
+                      Saved {new Date(post.bookmarkedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -211,6 +296,13 @@ const Profile = () => {
           reportedUserId={userId}
         />
       )}
+
+      <EditProfileModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        user={user}
+        onProfileUpdated={refetchUser}
+      />
     </div>
   );
 };
