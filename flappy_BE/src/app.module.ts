@@ -16,6 +16,7 @@ import { FeatureFlagsModule } from './common/feature-flags.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { WalletModule } from './wallet/wallet.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { WalletModule } from './wallet/wallet.module';
     SubscriptionsModule,
     RewardsModule,
     WalletModule,
+    StorageModule,
   ],
   providers: [
     {

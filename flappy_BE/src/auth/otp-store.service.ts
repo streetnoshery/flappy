@@ -21,12 +21,20 @@ export interface PendingSignup {
   expiresAt: number;
 }
 
+/** One-time password-reset token record — stored hashed, expires in 15 min */
+interface ResetTokenRecord {
+  hashedToken: string;
+  expiresAt: number;
+  used: boolean;
+}
+
 @Injectable()
 export class OtpStoreService {
   private readonly logger = new Logger(OtpStoreService.name);
   private store = new Map<string, OtpRecord>();
   private rateLimits = new Map<string, RateLimitRecord>();
   private pendingSignups = new Map<string, PendingSignup>();
+  private resetTokens = new Map<string, ResetTokenRecord>(); // keyed by email
 
   private readonly OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
   private readonly MAX_ATTEMPTS = 5;
@@ -142,25 +150,67 @@ export class OtpStoreService {
     return data;
   }
 
+  // ─── Password-reset tokens ───────────────────────────────────────────────
+
+  /**
+   * Store a hashed one-time reset token for an email (15 min TTL).
+   * Returns the plain-text token to be returned to the verified caller.
+   */
+  storeResetToken(email: string, plainToken: string): void {
+    const hashedToken = crypto.createHash('sha256').update(plainToken).digest('hex');
+    this.resetTokens.set(email, {
+      hashedToken,
+      expiresAt: Date.now() + 15 * 60 * 1000,
+      used: false,
+    });
+    this.logger.log(`Reset token stored for ${email}`);
+  }
+
+  /**
+   * Verify and consume a reset token. Single-use.
+   * Returns true only if the token matches, is not expired, and has not been used.
+   */
+  consumeResetToken(email: string, plainToken: string): { valid: boolean; message: string } {
+    const record = this.resetTokens.get(email);
+
+    if (!record) {
+      return { valid: false, message: 'No reset token found. Please restart the password reset process.' };
+    }
+    if (record.used) {
+      this.resetTokens.delete(email);
+      return { valid: false, message: 'Reset token has already been used.' };
+    }
+    if (Date.now() > record.expiresAt) {
+      this.resetTokens.delete(email);
+      return { valid: false, message: 'Reset token has expired. Please restart the password reset process.' };
+    }
+
+    const hashedInput = crypto.createHash('sha256').update(plainToken).digest('hex');
+    if (hashedInput !== record.hashedToken) {
+      return { valid: false, message: 'Invalid reset token.' };
+    }
+
+    // Consume — mark used then delete
+    this.resetTokens.delete(email);
+    return { valid: true, message: 'Token verified' };
+  }
+
   /**
    * Remove expired entries periodically (call from a cron or interval).
    */
   cleanup(): void {
     const now = Date.now();
     for (const [key, record] of this.store.entries()) {
-      if (now > record.expiresAt) {
-        this.store.delete(key);
-      }
+      if (now > record.expiresAt) this.store.delete(key);
     }
     for (const [key, record] of this.rateLimits.entries()) {
-      if (now - record.windowStart > this.RATE_LIMIT_WINDOW_MS) {
-        this.rateLimits.delete(key);
-      }
+      if (now - record.windowStart > this.RATE_LIMIT_WINDOW_MS) this.rateLimits.delete(key);
     }
     for (const [key, data] of this.pendingSignups.entries()) {
-      if (now > data.expiresAt) {
-        this.pendingSignups.delete(key);
-      }
+      if (now > data.expiresAt) this.pendingSignups.delete(key);
+    }
+    for (const [key, record] of this.resetTokens.entries()) {
+      if (now > record.expiresAt) this.resetTokens.delete(key);
     }
   }
 }

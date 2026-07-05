@@ -14,6 +14,7 @@ import Search from './pages/Search';
 import Explore from './pages/Explore';
 import Bookmarks from './pages/Bookmarks';
 import Wallet from './pages/Wallet';
+import Upload from './pages/Upload';
 import LogoShowcase from './pages/LogoShowcase';
 
 function ProtectedRoute({ children }) {
@@ -61,6 +62,7 @@ function App() {
               <Route path="explore" element={<Explore />} />
               <Route path="bookmarks" element={<Bookmarks />} />
               <Route path="wallet" element={<Wallet />} />
+              <Route path="upload" element={<Upload />} />
             </Route>
           </Routes>
         </div>

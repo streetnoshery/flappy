@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
-import { Home, Compass, PlusSquare, Search, Bookmark, Wallet } from 'lucide-react';
+import { Home, Compass, PlusSquare, Search, Bookmark, Wallet, Upload } from 'lucide-react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,7 +14,7 @@ const BottomNav = () => {
     { icon: Home,       path: '/',          label: 'Home' },
     { icon: Search,     path: '/search',    label: 'Search' },
     { icon: PlusSquare, path: '/create',    label: 'Create', highlight: true },
-    { icon: Wallet,     path: '/wallet',    label: 'Wallet' },
+    { icon: Upload,     path: '/upload',    label: 'Upload' },
     { icon: Compass,    path: '/explore',   label: 'Explore' },
   ];
 

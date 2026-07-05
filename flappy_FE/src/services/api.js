@@ -70,6 +70,7 @@ export const authAPI = {
   verifySignupOtp: (otpData) => api.post('/auth/otp/verify-signup', otpData),
   resendOtp: (data) => api.post('/auth/otp/resend', data),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
+  verifyResetOtp: (data) => api.post('/auth/verify-reset-otp', data),
   resetPassword: (data) => api.post('/auth/reset-password', data),
 };
 
@@ -238,6 +239,98 @@ export const reportsAPI = {
   createReport: (data) => {
     const user = getUserData();
     return api.post('/reports', { ...data, userId: user?.userId, email: user?.email });
+  },
+};
+
+// Storage / S3 API
+export const storageAPI = {
+  /**
+   * Step 1 — Request a presigned PUT URL from the server.
+   * Server never sees the file bytes.
+   */
+  getUploadUrl: ({ filename, mimeType, size, folderPrefix }) =>
+    api.post('/storage/upload-url', { filename, mimeType, size, folderPrefix }),
+
+  /**
+   * Step 2 — PUT the file directly to S3 using the presigned URL.
+   * Uses XMLHttpRequest so we can track upload progress.
+   * For files >8 MB the server sets multipart:true as a hint, but the browser
+   * PUT is always a single request (S3 handles chunking internally on presigned URLs).
+   * @param {string} presignedUrl
+   * @param {File} file
+   * @param {function} onProgress  — called with 0-100
+   */
+  putFileToS3: (presignedUrl, file, onProgress) =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', presignedUrl);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        });
+      }
+      xhr.onload  = () => (xhr.status === 200 ? resolve() : reject(new Error(`S3 PUT failed: ${xhr.status}`)));
+      xhr.onerror = () => reject(new Error('Network error during S3 PUT'));
+      xhr.send(file);
+    }),
+
+  /**
+   * Step 3 — Confirm the upload so the server saves the record to MongoDB.
+   */
+  confirmUpload: ({ key, originalName, mimeType, size, folderPrefix }) =>
+    api.post('/storage/confirm', { key, originalName, mimeType, size, folderPrefix }),
+
+  /**
+   * Get a presigned GET URL for a file by its MongoDB record ID.
+   */
+  getDownloadUrlById: (fileId) => api.get(`/storage/files/${fileId}/download-url`),
+
+  /**
+   * Legacy server-proxied upload (kept for small files / fallback).
+   */
+  upload: (formData) => api.post('/storage/upload', formData),
+
+  /**
+   * Create a folder prefix in S3.
+   */
+  createFolder: (folderName, parentPrefix) =>
+    api.post('/storage/folder', { folderName, parentPrefix }),
+
+  /**
+   * List files and folders scoped to the authenticated user.
+   */
+  list: (prefix) => {
+    const params = new URLSearchParams();
+    if (prefix) params.append('prefix', prefix);
+    const qs = params.toString();
+    return api.get(`/storage/list${qs ? `?${qs}` : ''}`);
+  },
+
+  /**
+   * Get a pre-signed download URL for a file the user owns (by S3 key).
+   */
+  download: (key) => {
+    const params = new URLSearchParams({ key });
+    return api.get(`/storage/download?${params.toString()}`);
+  },
+
+  /** Permanently delete a single file. */
+  deleteFile: (key) => {
+    const params = new URLSearchParams({ key });
+    return api.delete(`/storage/file?${params.toString()}`);
+  },
+
+  /** Permanently delete a folder and everything inside it. */
+  deleteFolder: (prefix) => {
+    const params = new URLSearchParams({ prefix });
+    return api.delete(`/storage/folder?${params.toString()}`);
+  },
+
+  /** Download an entire folder as a single ZIP file. */
+  downloadFolderZip: (prefix) => {
+    const params = new URLSearchParams({ prefix });
+    return api.get(`/storage/folder/zip?${params.toString()}`, { responseType: 'blob' });
   },
 };
 
