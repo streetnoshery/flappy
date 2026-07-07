@@ -1,12 +1,10 @@
-import { IsString, IsOptional, IsIn, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsIn } from 'class-validator';
 
+/**
+ * userId and email are intentionally ABSENT from all mutation DTOs.
+ * Identity always comes from the verified JWT via @CurrentUser() — never from the client.
+ */
 export class CreatePostDto {
-  @IsString()
-  userId: string;
-
-  @IsEmail()
-  email: string;
-
   @IsIn(['text', 'image', 'gif'], { message: 'Post type must be text, image, or gif' })
   type: string;
 
@@ -19,12 +17,6 @@ export class CreatePostDto {
 }
 
 export class UpdatePostDto {
-  @IsString()
-  userId: string;
-
-  @IsEmail()
-  email: string;
-
   @IsOptional()
   @IsString()
   content?: string;

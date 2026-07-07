@@ -1,186 +1,78 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Put, 
-  Delete, 
-  Param, 
-  Body, 
-  Query,
-  BadRequestException
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  BadRequestException,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { CreatePostDto, UpdatePostDto } from './dto/post.dto';
 import { FeatureFlagsService } from '../common/services/feature-flags.service';
+import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
+import { SecurityAuditService } from '../common/services/security-audit.service';
 
 @Controller('posts')
 export class PostsController {
   constructor(
     private readonly postsService: PostsService,
-    private readonly featureFlagsService: FeatureFlagsService
+    private readonly featureFlagsService: FeatureFlagsService,
+    private readonly auditService: SecurityAuditService,
   ) {}
 
+  /** POST /posts — userId from JWT only, never from body */
   @Post()
-  async createPost(@Body() createPostDto: CreatePostDto) {
-    console.log('📝 [POSTS] POST /posts - Creating new post', {
-      userId: createPostDto.userId,
-      userEmail: createPostDto.email,
-      postType: createPostDto.type,
-      contentLength: createPostDto.content?.length,
-      hasMedia: !!createPostDto.mediaUrl,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Additional feature flag validation
-    if (!this.featureFlagsService.validatePostType(createPostDto.type)) {
+  async createPost(
+    @Body() dto: CreatePostDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    if (!this.featureFlagsService.validatePostType(dto.type)) {
       const enabledTypes = this.featureFlagsService.getEnabledPostTypes();
-      console.error('❌ [POSTS] POST /posts - Post type not enabled', {
-        requestedType: createPostDto.type,
-        enabledTypes,
-        userId: createPostDto.userId
-      });
-      throw new BadRequestException(`Post type '${createPostDto.type}' is not enabled. Available types: ${enabledTypes.join(', ')}`);
+      throw new BadRequestException(
+        `Post type '${dto.type}' is not enabled. Available types: ${enabledTypes.join(', ')}`,
+      );
     }
-    
-    try {
-      const post = await this.postsService.create(createPostDto);
-      console.log('✅ [POSTS] POST /posts - Post created successfully', {
-        postId: post._id,
-        userId: createPostDto.userId,
-        postType: post.type,
-        hashtagsCount: post.hashtags?.length || 0
-      });
-      return post;
-    } catch (error) {
-      console.error('❌ [POSTS] POST /posts - Failed to create post', {
-        error: error.message,
-        userId: createPostDto.userId,
-        postType: createPostDto.type
-      });
-      throw error;
-    }
+    return this.postsService.create(dto, actor.userId);
   }
 
   @Get('trending-tags')
   async getTrendingTags() {
-    console.log('📈 [POSTS] GET /posts/trending-tags - Fetching trending tags', {
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const tags = await this.postsService.getTrendingTags();
-      console.log('✅ [POSTS] GET /posts/trending-tags - Trending tags retrieved', {
-        tagsCount: tags.length,
-        topTag: tags[0]?.tag
-      });
-      return tags;
-    } catch (error) {
-      console.error('❌ [POSTS] GET /posts/trending-tags - Failed to retrieve trending tags', {
-        error: error.message
-      });
-      throw error;
-    }
+    return this.postsService.getTrendingTags();
   }
 
+  /** GET /posts/user/:userId — public profile view (read-only, no sensitive data) */
   @Get('user/:userId')
-  async getPostsByUserId(@Param('userId') userId: string, @Query('currentUserId') currentUserId?: string) {
-    console.log('👤 [POSTS] GET /posts/user/:userId - Fetching posts by user', {
-      userId,
-      currentUserId,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const posts = await this.postsService.findByUserId(userId, currentUserId);
-      console.log('✅ [POSTS] GET /posts/user/:userId - User posts retrieved', {
-        userId,
-        currentUserId,
-        postsCount: posts.length
-      });
-      return { data: posts };
-    } catch (error) {
-      console.error('❌ [POSTS] GET /posts/user/:userId - Failed to retrieve user posts', {
-        error: error.message,
-        userId,
-        currentUserId
-      });
-      throw error;
-    }
+  async getPostsByUserId(
+    @Param('userId') userId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    // currentUserId for reaction enrichment comes from JWT, not a query param
+    return { data: await this.postsService.findByUserId(userId, actor.userId) };
   }
 
   @Get(':id')
   async getPost(@Param('id') id: string) {
-    console.log('📖 [POSTS] GET /posts/:id - Fetching post', {
-      postId: id,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const post = await this.postsService.findById(id);
-      console.log('✅ [POSTS] GET /posts/:id - Post retrieved', {
-        postId: id,
-        userId: post.userId,
-        postType: post.type
-      });
-      return post;
-    } catch (error) {
-      console.error('❌ [POSTS] GET /posts/:id - Failed to retrieve post', {
-        error: error.message,
-        postId: id
-      });
-      throw error;
-    }
+    return this.postsService.findById(id);
   }
 
+  /** PUT /posts/:id — ownership verified in service against JWT userId */
   @Put(':id')
-  async updatePost(@Param('id') id: string, @Body() updatePostDto: UpdatePostDto) {
-    console.log('✏️ [POSTS] PUT /posts/:id - Updating post', {
-      postId: id,
-      userId: updatePostDto.userId,
-      updateFields: Object.keys(updatePostDto),
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const post = await this.postsService.update(id, updatePostDto);
-      console.log('✅ [POSTS] PUT /posts/:id - Post updated successfully', {
-        postId: id,
-        userId: updatePostDto.userId,
-        updatedFields: Object.keys(updatePostDto)
-      });
-      return post;
-    } catch (error) {
-      console.error('❌ [POSTS] PUT /posts/:id - Failed to update post', {
-        error: error.message,
-        postId: id,
-        userId: updatePostDto.userId
-      });
-      throw error;
-    }
+  async updatePost(
+    @Param('id') id: string,
+    @Body() dto: UpdatePostDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.postsService.update(id, dto, actor.userId);
   }
 
+  /** DELETE /posts/:id — ownership verified in service against JWT userId */
   @Delete(':id')
-  async deletePost(@Param('id') id: string, @Body() body: { userId: string; email: string }) {
-    console.log('🗑️ [POSTS] DELETE /posts/:id - Deleting post', {
-      postId: id,
-      userId: body.userId,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const result = await this.postsService.delete(id, body.userId);
-      console.log('✅ [POSTS] DELETE /posts/:id - Post deleted successfully', {
-        postId: id,
-        userId: body.userId
-      });
-      return result;
-    } catch (error) {
-      console.error('❌ [POSTS] DELETE /posts/:id - Failed to delete post', {
-        error: error.message,
-        postId: id,
-        userId: body.userId
-      });
-      throw error;
-    }
+  async deletePost(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.postsService.delete(id, actor.userId);
   }
 }

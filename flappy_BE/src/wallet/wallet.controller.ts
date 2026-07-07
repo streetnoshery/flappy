@@ -1,65 +1,61 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  Query,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Post, Param, Query } from '@nestjs/common';
 import { WalletService } from './wallet.service';
+import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
 
 @Controller('wallet')
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
 
   @Get('summary')
-  async getSummary(@Request() req) {
-    const userId = req.user.userId;
-    return this.walletService.getWalletSummary(userId);
+  async getSummary(@CurrentUser() actor: AuthenticatedUser) {
+    return this.walletService.getWalletSummary(actor.userId);
   }
 
   @Get('posts')
   async getPostEarnings(
-    @Request() req,
+    @CurrentUser() actor: AuthenticatedUser,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
-    const userId = req.user.userId;
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 20;
-    return this.walletService.getPostEarnings(userId, pageNum, pageSizeNum);
+    return this.walletService.getPostEarnings(
+      actor.userId,
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 20,
+    );
   }
 
   /**
    * GET /wallet/posts/:postId/coins
-   * Returns the coin balance for a specific post.
-   * Only the post owner should call this — the frontend enforces visibility.
+   * Ownership verified in service: post must belong to actor.userId.
+   * Returns 404 if the post doesn't exist or isn't owned by the actor.
    */
   @Get('posts/:postId/coins')
-  async getPostCoins(@Param('postId') postId: string) {
-    return this.walletService.getPostCoinBalance(postId);
+  async getPostCoins(
+    @Param('postId') postId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.walletService.getPostCoinBalance(postId, actor.userId);
   }
 
   @Post('convert/:postId')
-  async convertPostCoins(@Request() req, @Param('postId') postId: string) {
-    const userId = req.user.userId;
-    return this.walletService.convertPostCoins(userId, postId);
+  async convertPostCoins(
+    @Param('postId') postId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.walletService.convertPostCoins(actor.userId, postId);
   }
 
   @Get('transactions')
   async getTransactionHistory(
-    @Request() req,
+    @CurrentUser() actor: AuthenticatedUser,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('postId') postId?: string,
   ) {
-    const userId = req.user.userId;
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 20;
     return this.walletService.getTransactionHistory(
-      userId,
-      pageNum,
-      pageSizeNum,
+      actor.userId,
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 20,
       postId,
     );
   }

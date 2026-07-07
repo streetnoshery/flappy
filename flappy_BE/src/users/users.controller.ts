@@ -1,123 +1,74 @@
-import { 
-  Controller, 
-  Get, 
-  Put, 
-  Post, 
-  Param, 
-  Body, 
-  Query, 
-  UseInterceptors, 
-  UploadedFile 
+import {
+  Controller,
+  Get,
+  Put,
+  Post,
+  Param,
+  Body,
+  Query,
+  UseInterceptors,
+  UploadedFile,
+  NotFoundException,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
+import { CheckOwnership } from '../common/guards/ownership.guard';
+import { SecurityAuditService } from '../common/services/security-audit.service';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly auditService: SecurityAuditService,
+  ) {}
 
+  /** GET /users/:id — public profile read, enriched with JWT actor */
   @Get(':id')
-  async getUserById(@Param('id') id: string, @Query('viewerId') viewerId?: string) {
-    console.log('👤 [USERS] GET /users/:id - Fetching user profile', {
-      userId: id,
-      viewerId: viewerId ?? null,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const user = await this.usersService.findById(id, viewerId);
-      console.log('✅ [USERS] GET /users/:id - User profile retrieved', {
-        userId: id,
-        viewerId: viewerId ?? null,
-        username: user.username,
-        isOwnProfile: viewerId === id
-      });
-      return user;
-    } catch (error) {
-      console.error('❌ [USERS] GET /users/:id - Failed to retrieve user', {
-        error: error.message,
-        userId: id,
-        viewerId: viewerId ?? null
-      });
-      throw error;
-    }
+  async getUserById(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.usersService.findById(id, actor.userId);
   }
 
+  /**
+   * PUT /users/:id — self-update only.
+   * @CheckOwnership('id') enforces param :id === req.user.userId via OwnershipGuard.
+   * Returns 404 (not 403) to avoid leaking account existence.
+   */
+  @CheckOwnership('id')
   @Put(':id')
-  async updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    console.log('✏️ [USERS] PUT /users/:id - Updating user profile', {
-      userId: id,
-      updateFields: Object.keys(updateUserDto),
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const user = await this.usersService.update(id, updateUserDto);
-      console.log('✅ [USERS] PUT /users/:id - User profile updated', {
-        userId: id,
-        username: user.username,
-        updatedFields: Object.keys(updateUserDto)
-      });
-      return user;
-    } catch (error) {
-      console.error('❌ [USERS] PUT /users/:id - Failed to update user', {
-        error: error.message,
-        userId: id,
-        updateFields: Object.keys(updateUserDto)
-      });
-      throw error;
-    }
+  async updateUser(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    // actor.userId === id is already enforced by OwnershipGuard
+    return this.usersService.update(id, updateUserDto);
   }
 
+  /**
+   * POST /users/:id/upload-photo — self-update only.
+   * @CheckOwnership('id') enforces param :id === req.user.userId.
+   */
+  @CheckOwnership('id')
   @Post(':id/upload-photo')
   @UseInterceptors(FileInterceptor('photo'))
-  async uploadPhoto(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Body() body: { userId: string; email: string }) {
-    console.log('📸 [USERS] POST /users/:id/upload-photo - Uploading profile photo', {
-      userId: id,
-      requestUserId: body.userId,
-      fileName: file?.originalname,
-      fileSize: file?.size,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const result = await this.usersService.uploadProfilePhoto(id, file);
-      console.log('✅ [USERS] POST /users/:id/upload-photo - Profile photo uploaded', {
-        userId: id,
-        photoUrl: result.profilePhotoUrl
-      });
-      return result;
-    } catch (error) {
-      console.error('❌ [USERS] POST /users/:id/upload-photo - Failed to upload photo', {
-        error: error.message,
-        userId: id,
-        fileName: file?.originalname
-      });
-      throw error;
-    }
+  async uploadPhoto(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.usersService.uploadProfilePhoto(id, file);
   }
 
+  /** GET /users/search?username= — public, no ownership needed */
   @Get('search')
   async searchUsers(@Query('username') username: string) {
-    console.log('🔍 [USERS] GET /users/search - Searching users', {
-      searchQuery: username,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const users = await this.usersService.searchByUsername(username);
-      console.log('✅ [USERS] GET /users/search - User search completed', {
-        searchQuery: username,
-        resultsCount: users.length
-      });
-      return users;
-    } catch (error) {
-      console.error('❌ [USERS] GET /users/search - User search failed', {
-        error: error.message,
-        searchQuery: username
-      });
-      throw error;
-    }
+    return this.usersService.searchByUsername(username);
   }
 }

@@ -1,89 +1,38 @@
-import { Controller, Post, Get, Param, Body, Query } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body } from '@nestjs/common';
 import { ReactionsService } from './reactions.service';
 import { CreateReactionDto } from './dto/reaction.dto';
+import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
 
 @Controller('posts')
 export class ReactionsController {
   constructor(private readonly reactionsService: ReactionsService) {}
 
+  /** POST /posts/:id/react — actor always from JWT, never from body */
   @Post(':id/react')
-  async reactToPost(@Param('id') postId: string, @Body() createReactionDto: CreateReactionDto) {
-    console.log('😊 [REACTIONS] POST /posts/:id/react - Adding/toggling reaction to post', {
-      postId: postId,
-      userId: createReactionDto.userId,
-      email: createReactionDto.email,
-      reactionType: createReactionDto.type,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const reaction = await this.reactionsService.reactToPost(postId, createReactionDto, createReactionDto.userId);
-      console.log('✅ [REACTIONS] POST /posts/:id/react - Reaction processed successfully', {
-        postId: postId,
-        userId: createReactionDto.userId,
-        reactionType: createReactionDto.type,
-        isReacted: reaction.isReacted,
-        currentReaction: reaction.reactionType
-      });
-      return reaction;
-    } catch (error) {
-      console.error('❌ [REACTIONS] POST /posts/:id/react - Failed to process reaction', {
-        error: error.message,
-        postId: postId,
-        userId: createReactionDto.userId,
-        reactionType: createReactionDto.type
-      });
-      throw error;
-    }
+  async reactToPost(
+    @Param('id') postId: string,
+    @Body() dto: CreateReactionDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.reactionsService.reactToPost(postId, dto, actor.userId);
   }
 
+  /**
+   * GET /posts/:id/user-reaction
+   * Returns the reaction for the authenticated user only.
+   * Ignores any userId query param to prevent cross-user reaction reads.
+   */
   @Get(':id/user-reaction')
-  async getUserReaction(@Param('id') postId: string, @Query('userId') userId: string) {
-    console.log('👤 [REACTIONS] GET /posts/:id/user-reaction - Fetching user reaction', {
-      postId: postId,
-      userId: userId,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const reactionType = await this.reactionsService.getUserReaction(postId, userId);
-      console.log('✅ [REACTIONS] GET /posts/:id/user-reaction - User reaction retrieved', {
-        postId: postId,
-        userId: userId,
-        reactionType: reactionType
-      });
-      return { reactionType };
-    } catch (error) {
-      console.error('❌ [REACTIONS] GET /posts/:id/user-reaction - Failed to retrieve user reaction', {
-        error: error.message,
-        postId: postId,
-        userId: userId
-      });
-      throw error;
-    }
+  async getUserReaction(
+    @Param('id') postId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    const reactionType = await this.reactionsService.getUserReaction(postId, actor.userId);
+    return { reactionType };
   }
 
   @Get(':id/reactions')
   async getReactions(@Param('id') postId: string) {
-    console.log('📊 [REACTIONS] GET /posts/:id/reactions - Fetching post reactions', {
-      postId: postId,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const reactions = await this.reactionsService.getReactions(postId);
-      console.log('✅ [REACTIONS] GET /posts/:id/reactions - Reactions retrieved', {
-        postId: postId,
-        reactionTypes: Object.keys(reactions),
-        totalReactions: Object.values(reactions).reduce((sum: number, count: any) => sum + count, 0)
-      });
-      return reactions;
-    } catch (error) {
-      console.error('❌ [REACTIONS] GET /posts/:id/reactions - Failed to retrieve reactions', {
-        error: error.message,
-        postId: postId
-      });
-      throw error;
-    }
+    return this.reactionsService.getReactions(postId);
   }
 }

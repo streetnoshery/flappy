@@ -1,47 +1,20 @@
 import { IsString, IsEmail } from 'class-validator';
 
+/**
+ * userId and email are REMOVED from all interaction DTOs.
+ * The authenticated actor is always read from the JWT via @CurrentUser() in controllers.
+ */
 export class CreateCommentDto {
   @IsString()
   text: string;
-
-  @IsString()
-  userId: string;
-
-  @IsEmail()
-  email: string;
 }
 
 export class CreateReplyDto {
   @IsString()
   text: string;
-
-  @IsString()
-  userId: string;
-
-  @IsEmail()
-  email: string;
 }
 
-export class LikePostDto {
-  @IsString()
-  userId: string;
-
-  @IsEmail()
-  email: string;
-}
-
-export class PinPostDto {
-  @IsString()
-  userId: string;
-
-  @IsEmail()
-  email: string;
-}
-
-export class SavePostDto {
-  @IsString()
-  userId: string;
-
-  @IsEmail()
-  email: string;
-}
+// Empty body DTOs — kept for future extensible fields; identity from JWT only
+export class LikePostDto {}
+export class PinPostDto {}
+export class SavePostDto {}

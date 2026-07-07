@@ -156,18 +156,24 @@ export class WalletService {
   }
 
   /**
-   * Get the coin balance for a single post (owner-only use).
-   * Falls back to aggregating CoinTransaction records if no PostCoinLedger
-   * record exists yet (handles coins earned before the ledger was introduced).
+   * Get the coin balance for a single post.
+   * Ownership guard: verifies the post belongs to the requesting userId
+   * before returning balance — prevents cross-user earnings disclosure.
    */
   async getPostCoinBalance(
     postId: string,
+    requestingUserId: string,
   ): Promise<{ postId: string; coinBalance: number; thresholdReached: boolean }> {
+    // First, verify ownership via the ledger record
     const record = await this.postCoinLedgerModel
       .findOne({ postId })
       .exec();
 
     if (record) {
+      if (record.ownerId !== requestingUserId) {
+        // Fail closed — return 404 to avoid disclosing existence to non-owners
+        throw new NotFoundException('post_not_found');
+      }
       return {
         postId: record.postId,
         coinBalance: record.coinBalance,
@@ -175,7 +181,13 @@ export class WalletService {
       };
     }
 
-    // No ledger record yet — aggregate from CoinTransaction history
+    // No ledger record — verify ownership via the Post document
+    const post = await this.postModel.findById(postId).lean().exec();
+    if (!post || post.userId !== requestingUserId) {
+      throw new NotFoundException('post_not_found');
+    }
+
+    // Aggregate from CoinTransaction history
     const result = await this.coinTransactionModel.aggregate([
       {
         $match: {
@@ -187,12 +199,7 @@ export class WalletService {
     ]);
 
     const coinBalance = result.length > 0 ? Math.max(0, result[0].total) : 0;
-
-    return {
-      postId,
-      coinBalance,
-      thresholdReached: coinBalance >= 1000,
-    };
+    return { postId, coinBalance, thresholdReached: coinBalance >= 1000 };
   }
 
   /**

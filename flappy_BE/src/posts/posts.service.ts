@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Post } from './schemas/post.schema';
@@ -16,38 +16,16 @@ export class PostsService {
     @InjectModel(Comment.name) private commentModel: Model<Comment>
   ) {}
 
-  async create(createPostDto: CreatePostDto) {
-    console.log('📝 [POSTS_SERVICE] Creating new post', {
-      userId: createPostDto.userId,
-      email: createPostDto.email,
-      postType: createPostDto.type,
-      contentLength: createPostDto.content?.length,
-      hasMedia: !!createPostDto.mediaUrl
-    });
-    
+  async create(createPostDto: CreatePostDto, actorId: string) {
     const hashtags = this.extractHashtags(createPostDto.content);
-    console.log('🏷️ [POSTS_SERVICE] Extracted hashtags', {
-      hashtags,
-      hashtagCount: hashtags.length
-    });
-    
     const post = new this.postModel({
-      userId: createPostDto.userId,
-      email: createPostDto.email,
+      userId: actorId,          // always from JWT, never from DTO
       type: createPostDto.type,
       content: createPostDto.content,
       mediaUrl: createPostDto.mediaUrl,
       hashtags,
     });
-    
-    const savedPost = await post.save();
-    console.log('✅ [POSTS_SERVICE] Post created successfully', {
-      postId: savedPost._id,
-      userId: createPostDto.userId,
-      hashtagsExtracted: hashtags.length
-    });
-    
-    return savedPost;
+    return post.save();
   }
 
   async findById(id: string) {
@@ -75,103 +53,52 @@ export class PostsService {
     return postWithUser;
   }
 
-  async update(id: string, updatePostDto: UpdatePostDto) {
-    console.log('✏️ [POSTS_SERVICE] Updating post', {
-      postId: id,
-      userId: updatePostDto.userId,
-      updateFields: Object.keys(updatePostDto)
-    });
-    
+  async update(id: string, updatePostDto: UpdatePostDto, actorId: string) {
     const post = await this.postModel.findById(id);
-    if (!post) {
-      console.log('❌ [POSTS_SERVICE] Post not found for update', { postId: id });
-      throw new NotFoundException('Post not found');
+    if (!post) throw new NotFoundException('Post not found');
+
+    // Ownership verified against JWT actorId — not a client-supplied value
+    if (post.userId !== actorId) {
+      throw new NotFoundException('Post not found'); // 404 avoids leaking existence
     }
-    
-    if (post.userId !== updatePostDto.userId) {
-      console.log('❌ [POSTS_SERVICE] Unauthorized post update attempt', {
-        postId: id,
-        postOwnerId: post.userId,
-        requestUserId: updatePostDto.userId
-      });
-      throw new ForbiddenException('You can only update your own posts');
-    }
-    
-    const hashtags = updatePostDto.content ? this.extractHashtags(updatePostDto.content) : post.hashtags;
-    console.log('🏷️ [POSTS_SERVICE] Updated hashtags', {
-      oldHashtags: post.hashtags,
-      newHashtags: hashtags
-    });
-    
+
+    const hashtags = updatePostDto.content
+      ? this.extractHashtags(updatePostDto.content)
+      : post.hashtags;
+
     const updatedPost = await this.postModel.findByIdAndUpdate(
       id,
-      { 
-        content: updatePostDto.content,
-        mediaUrl: updatePostDto.mediaUrl,
-        hashtags 
-      },
-      { new: true }
+      { content: updatePostDto.content, mediaUrl: updatePostDto.mediaUrl, hashtags },
+      { new: true },
     ).lean();
-    
-    // Manually populate user data
-    const user = await this.userModel.findOne({ userId: updatedPost.userId }, 'username profilePhotoUrl userId _id').lean();
-    const postWithUser = {
+
+    const user = await this.userModel
+      .findOne({ userId: updatedPost.userId }, 'username profilePhotoUrl userId _id')
+      .lean();
+
+    return {
       ...updatedPost,
-      userId: user || { userId: updatedPost.userId, username: 'Unknown User', profilePhotoUrl: null }
+      userId: user ?? { userId: updatedPost.userId, username: 'Unknown User', profilePhotoUrl: null },
     };
-    
-    console.log('✅ [POSTS_SERVICE] Post updated successfully', {
-      postId: id,
-      userId: updatePostDto.userId,
-      updatedFields: Object.keys(updatePostDto)
-    });
-    
-    return postWithUser;
   }
 
-  async delete(id: string, userId: string) {
-    console.log('🗑️ [POSTS_SERVICE] Deleting post', {
-      postId: id,
-      userId
-    });
-    
+  async delete(id: string, actorId: string) {
     const post = await this.postModel.findById(id);
-    if (!post) {
-      console.log('❌ [POSTS_SERVICE] Post not found for deletion', { postId: id });
+    if (!post) throw new NotFoundException('Post not found');
+
+    // Look up actor to check if admin — role comes from DB, never from the client
+    const actor = await this.userModel.findOne({ userId: actorId });
+    if (!actor) throw new NotFoundException('Post not found'); // don't reveal user-not-found
+
+    const isAdmin = actor.role === 'admin';
+    const isOwner = post.userId === actorId;
+
+    if (!isAdmin && !isOwner) {
+      // Return 404 — avoids confirming the post exists to non-owners
       throw new NotFoundException('Post not found');
     }
-    
-    // Get user to check role
-    const user = await this.userModel.findOne({ userId });
-    if (!user) {
-      console.log('❌ [POSTS_SERVICE] User not found for deletion request', { userId });
-      throw new NotFoundException('User not found');
-    }
-    
-    // Allow deletion if user is admin or owns the post
-    const isAdmin = user.role === 'admin';
-    const isOwner = post.userId === userId;
-    
-    if (!isAdmin && !isOwner) {
-      console.log('❌ [POSTS_SERVICE] Unauthorized post deletion attempt', {
-        postId: id,
-        postOwnerId: post.userId,
-        requestUserId: userId,
-        userRole: user.role,
-        isAdmin,
-        isOwner
-      });
-      throw new ForbiddenException('You can only delete your own posts');
-    }
-    
+
     await this.postModel.findByIdAndDelete(id);
-    console.log('✅ [POSTS_SERVICE] Post deleted successfully', {
-      postId: id,
-      userId,
-      userRole: user.role,
-      deletedByAdmin: isAdmin && !isOwner
-    });
-    
     return { message: 'Post deleted successfully' };
   }
 

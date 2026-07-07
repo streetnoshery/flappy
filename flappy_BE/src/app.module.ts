@@ -12,7 +12,7 @@ import { InteractionsModule } from './interactions/interactions.module';
 import { ReactionsModule } from './reactions/reactions.module';
 import { SearchModule } from './search/search.module';
 import { FollowModule } from './follow/follow.module';
-import { FeatureFlagsModule } from './common/feature-flags.module';
+import { CommonModule } from './common/common.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { WalletModule } from './wallet/wallet.module';
@@ -20,15 +20,10 @@ import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(process.env.MONGODB_URI),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 10,
-    }]),
-    FeatureFlagsModule,
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
+    CommonModule,   // provides SecurityAuditService, OwnershipGuard, FeatureFlagsService globally
     AuthModule,
     UsersModule,
     PostsModule,
